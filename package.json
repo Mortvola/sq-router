@@ -1,8 +1,8 @@
 {
   "name": "@mortvola/sq-router",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "SaunterQuest route finding package",
-  "main": "./build/Debug/pathFinder",
+  "main": "./build/Debug/sqrouter",
   "types": "./sq-router.d.ts",
   "gypfile": true,
   "license": "MIT",
