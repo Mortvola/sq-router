@@ -20,3 +20,8 @@ private:
 
 double bilinearInterpolation(double q11, double q12, double q21, double q22,
                              double x, double y);
+
+inline uint16_t swapBytes(uint16_t value) {
+  return ((value & 0xff) << 8) | ((value >> 8) & 0x00ff);
+}
+

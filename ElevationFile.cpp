@@ -1,10 +1,6 @@
 #include "ElevationFile.h"
 #include <cmath>
 
-uint16_t swapBytes(uint16_t value) {
-  return ((value & 0xff) << 8) | ((value >> 8) & 0x00ff);
-}
-
 LatLng normalize(const LatLng &point) {
   auto x = point.m_lng - std::floor(point.m_lng);
   auto y = 1 - (point.m_lat - std::floor(point.m_lat));

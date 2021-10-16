@@ -63,10 +63,6 @@ std::tuple<std::string, LatLng> getBaseFileName(const LatLng &point) {
                                          LatLng(latInt, lngInt));
 }
 
-uint16_t swapBytes(uint16_t value) {
-  return ((value & 0xff) << 8) | ((value >> 8) & 0x00ff);
-}
-
 const ElevationFile &Elevation::loadFile(const LatLng &point) {
   std::string filename;
   LatLng latLng;
