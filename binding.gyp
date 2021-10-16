@@ -23,6 +23,7 @@
         "sources": [
             "pathFinder.cpp",
             "Elevation.cpp",
+            "ElevationFile.cpp",
             "DBConnection.cpp",
             "graphBuilder.cpp",
             "Cost.cpp",
