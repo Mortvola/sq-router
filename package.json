@@ -1,0 +1,20 @@
+{
+  "name": "@mortvola/sq-router",
+  "version": "0.1.0",
+  "description": "SaunterQuest route finding package",
+  "main": "./build/Debug/pathFinder",
+  "types": "./sq-router.d.ts",
+  "gypfile": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "node-gyp build",
+    "build:dev": "node-gyp build --debug"
+  },
+  "author": "Richard Shields",
+  "publishConfig": {
+    "@mortvola:registry": "https://npm.pkg.github.com"
+  },
+  "dependencies": {
+    "node-addon-api": "^3.0.0"
+  }
+}
