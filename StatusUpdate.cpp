@@ -6,6 +6,8 @@ const std::string StatusRoutesUpdating {"routesUpdating"};
 const std::string StatusUpdatingRoutes {"updatingRoutes"};
 const std::string StatusRoutesUpdated {"routesUpdated"};
 const std::string StatusUpdateIntersectionCount {"updateIntersectionCount"};
+const std::string StatusSearchStarted {"searchStarted"};
+const std::string StatusSearchCompleted {"searchCompleted"};
 
 static Napi::ThreadSafeFunction statusUpdateCallback {};
 

@@ -28,12 +28,6 @@ public:
 
   void setBestCost(double cost, int nodeId);
 
-  int insertNode(TrailInfo &terminus);
-
-  void overrideEdges();
-  
-  std::vector<std::shared_ptr<Node>> &nodes() { return m_nodes; }
-
   std::shared_ptr<SearchNode> getSearchNode(int nodeId);
 
   std::shared_ptr<SearchNode> getSearchNode(const std::shared_ptr<Node> &node);
@@ -41,10 +35,6 @@ public:
   double getNodeCost(int nodeId, int search);
 
   std::shared_ptr<Graph> m_graph;
-
-  int m_bestCostNodeId {-1};
-
-  void loadRouteGroup(const std::string &name);
 
   std::vector<int> m_preferredRouteGroupIds;
 
@@ -57,6 +47,17 @@ public:
 
   int createNode(int index);
 
+private:
+  int insertNode(TrailInfo &terminus);
+
+  void overrideEdges();
+  
+  std::vector<std::shared_ptr<Node>> &nodes() { return m_nodes; }
+
+  int m_bestCostNodeId {-1};
+
+  void loadRouteGroup(const std::string &name);
+
   std::vector<Anchor> getRoute(
     const std::shared_ptr<Search> &forwardSearch,
     const std::shared_ptr<Search> &backwardSearch);
@@ -66,7 +67,6 @@ public:
     int endNodeId,
     int direction);
 
-private:
   std::vector<Anchor> BiDiDijkstra(ThreadPool &threadPool);
   std::vector<Anchor> AStar(ThreadPool &threadPool);
   std::vector<Anchor> BiDiAStar(ThreadPool &threadPool);

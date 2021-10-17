@@ -3,6 +3,7 @@
 #include "Search.h"
 #include "AStarSearch.h"
 #include "BiDiAStarSearch.h"
+#include "StatusUpdate.h"
 #include <thread>
 
 SearchController::SearchController(
@@ -39,16 +40,24 @@ std::vector<std::vector<Anchor>> SearchController::search(ThreadPool &threadPool
 
   std::vector<std::vector<Anchor>> anchors;
 
+  Json::Value status = Json::objectValue;
+  status["status"] = StatusSearchStarted;
   if (m_algorithm == "BiDijkstra")
   {
+    status["algorithm"] = "BiDijkstra";
+    statusUpdate(status);
     anchors.push_back(BiDiDijkstra(threadPool));
   }
   else if (m_algorithm == "A*")
   {
+    status["algorithm"] = "A*";
+    statusUpdate(status);
     anchors.push_back(AStar(threadPool));
   }
   else if (m_algorithm == "BiDiA*")
   {
+    status["algorithm"] = "BiDiA*";
+    statusUpdate(status);
     anchors.push_back(BiDiAStar(threadPool));
   }
   else
@@ -92,6 +101,10 @@ std::vector<Anchor> SearchController::BiDiDijkstra(ThreadPool &threadPool)
         break;
       }
     }
+
+    Json::Value status = Json::objectValue;
+    status["status"] = StatusSearchCompleted;
+    statusUpdate(status);
 
     return getRoute(forwardSearch, backwardSearch);
   }
