@@ -45,7 +45,12 @@ public:
   std::shared_ptr<SearchNode> queueFront()
   {
     std::unique_lock<std::mutex> lock(m_openSearchNodesMutex);
-    return *m_openSearchNodes.begin();
+
+    if (m_openSearchNodes.size() > 0) {
+      return *m_openSearchNodes.begin();
+    }
+
+    return nullptr;
   }
 
   void processNext(ThreadPool &threadPool);

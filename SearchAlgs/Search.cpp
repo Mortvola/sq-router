@@ -77,7 +77,11 @@ void Search::initializeStartNode()
 
 double Search::getNodeSortCost(const std::shared_ptr<SearchNode> &node)
 {
-  return node->m_searchInfo[m_search].m_cummulativeCost;
+  if (node) {
+    return node->m_searchInfo[m_search].m_cummulativeCost;
+  }
+
+  return 0;
 }
 
 double Search::getPotentialPathCost(const std::shared_ptr<SearchNode> &node)
