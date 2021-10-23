@@ -19,10 +19,15 @@ public:
 	}
 
 	LatLng (const Json::Value &value)
-	:
-		m_lat (value["lat"].asDouble ()),
-		m_lng (value["lng"].asDouble ())
 	{
+    if (value.isArray()) {
+      m_lat = value[0].asDouble();
+      m_lng = value[1].asDouble();
+    }
+    else {
+      m_lat = value["lat"].asDouble ();
+      m_lng = value["lng"].asDouble ();
+    }
 	}
 
 	bool operator== (const LatLng &other)
@@ -33,9 +38,9 @@ public:
 	friend std::ostream& operator<<(std::ostream &os, const LatLng &latLng)
 	{
 		os << std::setprecision(15) <<
-			" (" << latLng.m_lat <<
+			"(" << latLng.m_lat <<
 			", " << latLng.m_lng <<
-			") ";
+			")";
 
 		return os;
 	}
