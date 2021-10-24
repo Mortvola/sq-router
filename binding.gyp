@@ -17,7 +17,7 @@
             '-g'
         	],
         'cflags_cc!': [
-            '-fno-rtti',
+          '-fno-rtti',
         	"-fno-exceptions",
         ],
         "sources": [
@@ -60,7 +60,8 @@
             "<!(node -p \"require('node-addon-api').gyp\")"
         ],
         'defines': [
-        	'NAPI_DISABLE_CPP_EXCEPTIONS',
+          'NAPI_CPP_EXCEPTIONS',
+          'NODE_API_SWALLOW_UNTHROWABLE_EXCEPTIONS'
          ]
     }]
 }

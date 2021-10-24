@@ -60,12 +60,19 @@ pqxx::row DBConnection::exec1 (const std::string &sql)
 
 DBTransaction DBConnection::newTransaction ()
 {
-  return {m_connection};
+  return {shared_from_this()};
 }
 
 pqxx::connection &DBConnection::connection ()
 {
   return *m_connection;
+}
+
+DBTransaction::DBTransaction (const std::shared_ptr<DBConnection> &connection)
+:
+  m_dbConnection (connection),
+  m_transaction (std::make_unique<pqxx::work>(connection->connection()))
+{
 }
 
 pqxx::result DBTransaction::exec (const std::string &sql)

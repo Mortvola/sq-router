@@ -16,19 +16,14 @@
 #include <tuple>
 #include <functional>
 
+class DBConnection;
 class PreparedStatement;
-
 
 class DBTransaction
 {
 public:
 
-	DBTransaction (const std::shared_ptr<pqxx::connection> &connection)
-	:
-		m_connection (connection),
-		m_transaction (std::make_unique<pqxx::work>(*connection))
-	{
-	}
+	DBTransaction (const std::shared_ptr<DBConnection> &connection);
 
 	DBTransaction (DBTransaction &&other) = default;
 
@@ -47,15 +42,20 @@ public:
 		m_transaction->commit ();
 	}
 
+  std::shared_ptr<DBConnection> connection ()
+  {
+    return m_dbConnection;
+  }
+
 private:
 
-	std::shared_ptr<pqxx::connection> m_connection;
+  std::shared_ptr<DBConnection> m_dbConnection;
 	std::unique_ptr<pqxx::work> m_transaction;
 };
 
 void configDB(const std::string &username, const std::string &password, const std::string &host, const std::string &database);
 
-class DBConnection
+class DBConnection: public std::enable_shared_from_this<DBConnection>
 {
 public:
 
@@ -89,6 +89,7 @@ public:
 private:
 
   friend class PreparedStatement;
+  friend class DBTransaction;
 
   template<typename ... Args>
   pqxx::result execPrepared (const std::string &stmtName, Args &&... args)
@@ -125,6 +126,16 @@ public:
     const std::string &query)
   :
     m_dbConnection(dbConnection),
+    m_name("Query" + std::to_string(m_counter++))
+  {
+    m_dbConnection->prepare(m_name, query);
+  }
+
+  PreparedStatement(
+    DBTransaction &transaction,
+    const std::string &query)
+  :
+    m_dbConnection(transaction.connection()),
     m_name("Query" + std::to_string(m_counter++))
   {
     m_dbConnection->prepare(m_name, query);

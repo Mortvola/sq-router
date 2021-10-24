@@ -136,7 +136,11 @@ GraphBuilder::GraphBuilder()
             'id', e2.id,
             'lineId', e2.line_id,
             'pointIndex', e2.point_index,
-            'fraction', e2.fraction
+            'fraction', e2.fraction,
+            'forwardCost', e2.forward_cost,
+            'reverseCost', e2.reverse_cost,
+            'forwardEdgeId', e2.forward_edge_id,
+            'reverseEdgeId', e2.reverse_edge_id
           ) order by e2.line_id, e2.point_index, e2.id
         ) as edges
       from nav_nodes as nodes
@@ -208,7 +212,8 @@ bool operator==(const Edge &a, const Edge &b)
     && a.lineId == b.lineId
     && a.fraction == b.fraction
     && a.reverseEdgeId == b.reverseEdgeId
-    && a.forwardEdgeId == b.forwardEdgeId;
+    && a.forwardEdgeId == b.forwardEdgeId
+    ;
 }
 
 bool operator<(const Edge &a, const Edge &b)
@@ -217,35 +222,68 @@ bool operator<(const Edge &a, const Edge &b)
 }
 
 
-std::string makeInsertEdge(
-  int nodeId,
-  int reverseEdgeId,
-  int forwardEdgeId,
-  const Edge &edge)
+std::string serializeInsertEdge(
+  EdgeUpdate edge)
 {
   std::stringstream inserts;
 
-  inserts /*<< std::setprecision(16) */<< "(" << nodeId << ", " << edge.pointIndex << ", " << edge.fraction << ", " << 0 << ", " << 0 << ", " << edge.lineId;
-  inserts << ", " << reverseEdgeId << ", " << forwardEdgeId << "),";
+  inserts /*<< std::setprecision(16) */
+    << "(" << edge.edge->nodeId
+    << ", "<< edge.edge->pointIndex
+    << ", " << edge.edge->fraction
+    << ", " << edge.edge->forwardCost
+    << ", " << edge.edge->reverseCost
+    << ", " << edge.edge->lineId
+    << ", " << edge.edge->reverseEdgeId
+    << ", " << edge.edge->forwardEdgeId
+    << "),";
 
   return inserts.str();
 }
 
-std::tuple<std::string, std::string, std::vector<UpdateRec>> checkEdges(
+std::tuple<std::vector<EdgeUpdate>, std::vector<EdgeUpdate>> addEdgeInserts(
+  int nodeId,
+  int lineId,
+  std::vector<Edge>::iterator &iter2,
+  std::vector<Edge> &newEdges
+)
+{
+  std::vector<EdgeUpdate> lineEdges;
+  std::vector<EdgeUpdate> otherEdges;
+
+  // insert iter2 edges;
+  for (; iter2 != newEdges.end(); ++iter2)
+  {
+    EdgeUpdate e(EdgeUpdate::Operation::insert, &(*iter2));
+    e.edge->nodeId = nodeId;
+
+    if (iter2->lineId == lineId)
+    {
+      lineEdges.push_back(e);
+    }
+    else
+    {
+      otherEdges.push_back(e);
+      // inserts << serializeInsertEdge(e);
+    }
+  }
+
+  return {lineEdges, otherEdges};
+}
+
+std::tuple<std::string, std::vector<EdgeUpdate>, std::vector<EdgeUpdate>> compareEdges(
   const std::vector<Edge> &existingEdges,
   int nodeId,
   int lineId,
-  const std::vector<Edge> &newEdges)
+  std::vector<Edge> &newEdges)
 {
   auto iter1 = existingEdges.begin();
   auto iter2 = newEdges.begin();
 
-  std::vector<UpdateRec> lineEdges;
+  std::vector<EdgeUpdate> lineEdges;
+  std::vector<EdgeUpdate> otherEdges;
 
-  std::stringstream inserts;
   std::stringstream deletes;
-
-  // inserts << std::setprecision(16);
 
   while (iter1 != existingEdges.end() && iter2 != newEdges.end())
   {
@@ -254,31 +292,45 @@ std::tuple<std::string, std::string, std::vector<UpdateRec>> checkEdges(
       if (iter1->pointIndex < iter2->pointIndex)
       {
         // delete iter1 edge;
-        deletes << iter1->edgeId << ",";
+        deletes << iter1->id << ",";
         ++iter1;
       }
       else if (iter1->pointIndex > iter2->pointIndex)
       {
+        EdgeUpdate e(EdgeUpdate::Operation::insert, &(*iter2));
+        e.edge->nodeId = nodeId;
+
         if (iter2->lineId == lineId)
         {
-          lineEdges.emplace_back(-1, iter2->pointIndex, Operation::insert, nodeId, &(*iter2), nullptr);
+          lineEdges.push_back(e);
         }
         else
         {
-          inserts << makeInsertEdge(nodeId, -1, -1, *iter2);
+          otherEdges.push_back(e);
         }
+
         ++iter2;
       }
       else
       {
+        // The point indexes are the same.
+
+        EdgeUpdate e(EdgeUpdate::Operation::update, &(*iter2));
+        e.edge->id = iter1->id;
+        e.edge->nodeId = nodeId;
+        e.edge->forwardCost = iter1->forwardCost;
+        e.edge->reverseCost = iter1->reverseCost;
+        e.edge->forwardEdgeId = iter1->forwardEdgeId;
+        e.edge->reverseEdgeId = iter1->reverseEdgeId;
+
         if (iter1->lineId == lineId)
         {
-          lineEdges.emplace_back(iter1->edgeId, iter1->pointIndex, Operation::update, nodeId, &(*iter1), &(*iter2));
+          lineEdges.push_back(e);
         }
-        // else if (iter1->fraction != iter2->fraction)
-        // {
-        //   updates << "(" << iter1->edgeId << ", " << iter2->fraction << ", -1, -1),";
-        // }
+        else
+        {
+          otherEdges.push_back(e);
+        }
 
         ++iter1;
         ++iter2;
@@ -287,19 +339,21 @@ std::tuple<std::string, std::string, std::vector<UpdateRec>> checkEdges(
     else if (iter1->lineId < iter2->lineId)
     {
       // delete iter1 edge
-      deletes << iter1->edgeId <<  ",";
+      deletes << iter1->id <<  ",";
       ++iter1;
     }
     else // iter1->lineId > iter2->lineId
     {
+      EdgeUpdate e(EdgeUpdate::Operation::insert, &(*iter2));
+      e.edge->nodeId = nodeId;
+
       if (iter2->lineId == lineId)
       {
-        lineEdges.emplace_back(-1, iter2->pointIndex, Operation::insert, nodeId, &(*iter2), nullptr);
+        lineEdges.push_back(e);
       }
       else
       {
-        // insert iter2 edge
-        inserts << makeInsertEdge(nodeId, -1, -1, *iter2);
+        otherEdges.push_back(e);
       }
 
       ++iter2;
@@ -311,32 +365,26 @@ std::tuple<std::string, std::string, std::vector<UpdateRec>> checkEdges(
     // delete iter1 edges;
     for (; iter1 != existingEdges.end(); ++iter1)
     {
-      deletes << iter1->edgeId <<  ",";
+      deletes << iter1->id <<  ",";
     }
   }
   else if (iter2 != newEdges.end())
   {
-    // insert iter2 edges;
-    for (; iter2 != newEdges.end(); ++iter2)
-    {
-      if (iter2->lineId == lineId)
-      {
-        lineEdges.emplace_back(-1, iter2->pointIndex, Operation::insert, nodeId, &(*iter2), nullptr);
-      }
-      else
-      {
-        inserts << makeInsertEdge(nodeId, -1, -1, *iter2);
-      }
-    }
+    std::vector<EdgeUpdate> newLineEdges;
+    std::vector<EdgeUpdate> newOtherEdges;
+    
+    std::tie(newLineEdges, newOtherEdges) = addEdgeInserts(nodeId, lineId, iter2, newEdges);
+    lineEdges.insert(lineEdges.end(), newLineEdges.begin(), newLineEdges.end());
+    otherEdges.insert(otherEdges.end(), newOtherEdges.begin(), newOtherEdges.end());
   }
 
-  return {inserts.str(), deletes.str(), lineEdges};
+  return {deletes.str(), lineEdges, otherEdges};
 }
 
 
 GraphBuilder::EditLists GraphBuilder::makeEditLists(
   DBTransaction &transaction,
-  const std::vector<Node> &existingNodes,
+  const std::vector<ExistingNode> &existingNodes,
   std::vector<Node> &proposedNodes,
   int64_t lineId,
   Json::Value &status
@@ -351,22 +399,21 @@ GraphBuilder::EditLists GraphBuilder::makeEditLists(
   {
     if (iter1->m_way == iter2->m_way)
     {
-//      if (iter1->m_currentEdges != iter2->m_currentEdges)
-      {
-        std::string inserts;
-        std::string deletes;
-        std::vector<UpdateRec> newLineEdges;
+      // The nodes are the same. Compare the edges.
 
-        std::tie(inserts, deletes, newLineEdges) = checkEdges(
-          iter1->m_currentEdges,
-          iter1->m_nodeId,
-          lineId,
-          iter2->m_currentEdges);
+      std::string deletes;
+      std::vector<EdgeUpdate> newLineEdges;
+      std::vector<EdgeUpdate> newOtherEdges;
 
-        edits.insertEdges << inserts;
-        edits.deleteEdges += deletes;
-        edits.lineEdges.insert(edits.lineEdges.end(), newLineEdges.begin(), newLineEdges.end());
-      }
+      std::tie(deletes, newLineEdges, newOtherEdges) = compareEdges(
+        iter1->m_edges,
+        iter1->m_nodeId,
+        lineId,
+        iter2->m_edges);
+
+      edits.deleteEdges += deletes;
+      edits.lineEdges.insert(edits.lineEdges.end(), newLineEdges.begin(), newLineEdges.end());
+      edits.otherEdges.insert(edits.otherEdges.end(), newOtherEdges.begin(), newOtherEdges.end());
 
       ++iter1;
       ++iter2;
@@ -379,9 +426,9 @@ GraphBuilder::EditLists GraphBuilder::makeEditLists(
         status["count"] = status["count"].asInt() - 1;
       }
 
-      for (const auto &edge: iter1->m_currentEdges)
+      for (const auto &edge: iter1->m_edges)
       {
-        edits.deleteEdges += std::to_string(edge.edgeId) + ",";
+        edits.deleteEdges += std::to_string(edge.id) + ",";
       }
 
       ++iter1;
@@ -402,21 +449,14 @@ GraphBuilder::EditLists GraphBuilder::makeEditLists(
 
       iter2->m_nodeId = nodeId;
 
-      {
-        std::string inserts;
-        std::string deletes;
-        std::vector<UpdateRec> newLineEdges;
+      auto edgeIter = iter2->m_edges.begin();
 
-        std::tie(inserts, deletes, newLineEdges) = checkEdges(
-          {},
-          nodeId,
-          lineId,
-          iter2->m_currentEdges);
-
-        edits.insertEdges << inserts;
-        edits.deleteEdges += deletes;
-        edits.lineEdges.insert(edits.lineEdges.end(), newLineEdges.begin(), newLineEdges.end());
-      }
+      std::vector<EdgeUpdate> newLineEdges;
+      std::vector<EdgeUpdate> newOtherEdges;
+      
+      std::tie(newLineEdges, newOtherEdges) = addEdgeInserts(nodeId, lineId, edgeIter, iter2->m_edges);
+      edits.lineEdges.insert(edits.lineEdges.end(), newLineEdges.begin(), newLineEdges.end());
+      edits.otherEdges.insert(edits.otherEdges.end(), newOtherEdges.begin(), newOtherEdges.end());
 
       ++iter2;
     }
@@ -432,9 +472,9 @@ GraphBuilder::EditLists GraphBuilder::makeEditLists(
         status["count"] = status["count"].asInt() - 1;
       }
 
-      for (const auto &edge: iter1->m_currentEdges)
+      for (const auto &edge: iter1->m_edges)
       {
-        edits.deleteEdges += std::to_string(edge.edgeId) + ",";
+        edits.deleteEdges += std::to_string(edge.id) + ",";
       }
     }
   }
@@ -455,21 +495,14 @@ GraphBuilder::EditLists GraphBuilder::makeEditLists(
         }
       }
 
-      {
-        std::string inserts;
-        std::string deletes;
-        std::vector<UpdateRec> newLineEdges;
+      auto edgeIter = iter2->m_edges.begin();
 
-        std::tie(inserts, deletes, newLineEdges) = checkEdges(
-          {},
-          nodeId,
-          lineId,
-          iter2->m_currentEdges);
-
-        edits.insertEdges << inserts;
-        edits.deleteEdges += deletes;
-        edits.lineEdges.insert(edits.lineEdges.end(), newLineEdges.begin(), newLineEdges.end());
-      }
+      std::vector<EdgeUpdate> newLineEdges;
+      std::vector<EdgeUpdate> newOtherEdges;
+    
+      std::tie(newLineEdges, newOtherEdges) = addEdgeInserts(nodeId, lineId, edgeIter, iter2->m_edges);
+      edits.lineEdges.insert(edits.lineEdges.end(), newLineEdges.begin(), newLineEdges.end());
+      edits.otherEdges.insert(edits.otherEdges.end(), newOtherEdges.begin(), newOtherEdges.end());
 
       iter2->m_nodeId = nodeId;
     }
@@ -481,15 +514,15 @@ GraphBuilder::EditLists GraphBuilder::makeEditLists(
 
 void insertLineEdges(
   DBTransaction &transaction,
-  std::vector<UpdateRec> &lineEdges
+  std::vector<EdgeUpdate> &lineEdges
 )
 {
   std::string insertEdges;
 
   for (size_t i = 0; i < lineEdges.size(); i++)
   {
-    if (lineEdges[i].operation == Operation::insert) {
-      insertEdges += makeInsertEdge(lineEdges[i].nodeId, -1, -1, *lineEdges[i].edge1);
+    if (lineEdges[i].operation == EdgeUpdate::Operation::insert) {
+      insertEdges += serializeInsertEdge(lineEdges[i]); // .nodeId, -1, -1, *lineEdges[i].edge1);
     }
   }
 
@@ -505,138 +538,153 @@ void insertLineEdges(
 
     for (size_t i = 0, j = 0; i < lineEdges.size(); i++)
     {
-      if (lineEdges[i].operation == Operation::insert)
+      if (lineEdges[i].operation == EdgeUpdate::Operation::insert)
       {
-        lineEdges[i].edgeId = result[j++]["id"].as<int>();
+        lineEdges[i].edge->id = result[j++]["id"].as<int>();
       }
     }
   }
 }
 
-
-void setEdgeRelations(
-  const std::vector<UpdateRec> &lineEdges,
-  std::stringstream &updateEdges)
+std::tuple<double, double> GraphBuilder::getEdgeCosts(
+  DBTransaction &transaction,
+  int lineId,
+  double startFraction,
+  double endFraction
+)
 {
-  double prevFraction {-1};
+  PreparedStatement queryEdges(
+    transaction,
+    R"%(
+      select
+        ST_AsGeoJSON(ST_SwapOrdinates(ST_Transform(ST_LineSubString(way2, $2, $3), 4326), 'xy'))::json->'coordinates' as line
+      from planet_osm_route as route
+      where route.line_id = $1
+    )%"
+  );
 
-  // Now that we have the ordering  the nodes, we can
+  auto row = transaction.exec1(queryEdges, lineId, startFraction, endFraction);
+
+  Json::Reader reader;
+
+  Json::Value line;
+  reader.parse(row["line"].as<std::string>(), line);
+
+  return computeCosts(line);
+}
+
+void GraphBuilder::setEdgeRelationsAndCosts(
+  DBTransaction &transaction,
+  int lineId,
+  std::vector<EdgeUpdate> &lineEdges
+)
+{
+  // Sort the edges by point index.
+  std::sort(lineEdges.begin(), lineEdges.end(),
+    [](const EdgeUpdate &a, const EdgeUpdate &b)
+    {
+      return a.edge->pointIndex < b.edge->pointIndex;
+    });
+
+  // Now that we have the ordering of the nodes, we can
   // determine backward and forward edge IDs for the edges
   // and insert, update or delete them.
-  for (size_t i = 0; i < lineEdges.size(); i++)
+  for (size_t i = 1; i < lineEdges.size(); i++)
   {
-    int reverseEdgeId {-1};
-    int forwardEdgeId {-1};
+    lineEdges[i - 1].edge->forwardEdgeId = lineEdges[i].edge->id;
+    lineEdges[i].edge->reverseEdgeId = lineEdges[i - 1].edge->id;
 
-    if (i > 0)
-    {
-      reverseEdgeId = lineEdges[i - 1].edgeId;
-    }
+    double forwardCost;
+    double reverseCost;
 
-    if (i + 1 < lineEdges.size())
-    {
-      forwardEdgeId = lineEdges[i + 1].edgeId;
-    }
+    std::tie(forwardCost, reverseCost) = getEdgeCosts(
+      transaction, lineId,
+      lineEdges[i - 1].edge->fraction,
+      lineEdges[i].edge->fraction);
 
-    switch (lineEdges[i].operation)
-    {
-      case Operation::update:
-        if (lineEdges[i].edge1->fraction != lineEdges[i].edge2->fraction
-          || lineEdges[i].edge1->forwardEdgeId != forwardEdgeId
-          || lineEdges[i].edge1->reverseEdgeId != reverseEdgeId)
-        {
-          updateEdges << "("
-            << lineEdges[i].edgeId << ", "
-            << lineEdges[i].edge2->fraction << ", "
-            << reverseEdgeId << ", "
-            << forwardEdgeId << "),";
-        }
-
-        if (prevFraction >= 0 && prevFraction > lineEdges[i].edge2->fraction) {
-          std::cerr << "fraction ordering issue?" << std::endl;              
-        }
-
-        prevFraction = lineEdges[i].edge2->fraction;
-
-        break;
-
-      case Operation::insert:
-        // The record was inserted in a previous step to get the assigned edge id
-        // so now it is just an update to set the reverse and forward edge ids.
-        updateEdges << "("
-          << lineEdges[i].edgeId << ", "
-          << lineEdges[i].edge1->fraction << ", "
-          << reverseEdgeId << ", "
-          << forwardEdgeId << "),";
-
-        if (prevFraction >= 0 && prevFraction > lineEdges[i].edge1->fraction) {
-          std::cerr << "fraction ordering issue?" << std::endl;              
-        }
-
-        prevFraction = lineEdges[i].edge1->fraction;
-        break;
-    }
+    lineEdges[i - 1].edge->forwardCost = forwardCost;
+    lineEdges[i].edge->reverseCost = reverseCost;
   }
 }
 
+void updateEdges(
+  DBTransaction &transaction,
+  std::vector<EdgeUpdate> &lineEdges
+)
+{
+  std::stringstream edgeUpdates;
+
+  for (const auto &edge: lineEdges)
+  {
+    edgeUpdates << "("
+      << edge.edge->id << ", "
+      << edge.edge->fraction << ", "
+      << edge.edge->forwardEdgeId << ", "
+      << edge.edge->reverseEdgeId << ", "
+      << edge.edge->forwardCost << ", "
+      << edge.edge->reverseCost << "),";
+  }
+
+  if (!edgeUpdates.str().empty())
+  {
+    auto updates = edgeUpdates.str();
+    updates.pop_back(); // Pops off the trailing ","
+
+    transaction.exec(
+      R"%(
+        update nav_edges
+        set
+          fraction = t.fraction,
+          forward_edge_id = t.forward_edge_id,
+          reverse_edge_id = t.reverse_edge_id,
+          forward_cost = t.forward_cost,
+          reverse_cost = t.reverse_cost
+        from (values )%"
+      + updates
+      + R"%(
+        ) as t(edge_id, fraction, forward_edge_id, reverse_edge_id, forward_cost, reverse_cost)
+        where nav_edges.id = t.edge_id
+      )%"
+    );
+  }
+}
+
+void deleteEdgesAndNodes(
+  DBTransaction &transaction,
+  std::string deleteEdges,
+  std::string deleteNodes
+)
+{
+  if (!deleteEdges.empty())
+  {
+    transaction.exec("delete from nav_edges where id in (" + deleteEdges.substr(0, deleteEdges.size() - 1) + ")");
+  }
+
+  if (!deleteNodes.empty())
+  {
+    transaction.exec("delete from nav_nodes where id in (" + deleteNodes.substr(0, deleteNodes.size() - 1) + ")");
+  }
+}
 
 void GraphBuilder::modifyNodes(
   DBTransaction &transaction,
-  const std::vector<Node> &existingNodes,
+  const std::vector<ExistingNode> &existingNodes,
   std::vector<Node> &proposedNodes,
   int64_t lineId,
   Json::Value &status)
 {
-
   auto edits = makeEditLists(transaction, existingNodes, proposedNodes, lineId, status);
-
-  std::sort(edits.lineEdges.begin(), edits.lineEdges.end(),
-    [](const UpdateRec &a, const UpdateRec &b)
-    {
-      return a.pointIndex < b.pointIndex;
-    });
 
   // Insert the new edges so that we can get the edge ids.
   insertLineEdges(transaction, edits.lineEdges);
+  insertLineEdges(transaction, edits.otherEdges);
 
-  setEdgeRelations(edits.lineEdges, edits.updateEdges);
+  setEdgeRelationsAndCosts(transaction, lineId, edits.lineEdges);
 
-  if (!edits.insertEdges.str().empty())
-  {
-    auto inserts = edits.insertEdges.str();
-    transaction.exec(
-      R"%(
-        insert into nav_edges (node_id, point_index, fraction, forward_cost, reverse_cost, line_id, reverse_edge_id, forward_edge_id)
-        values
-      )%"
-    + inserts.substr(0, inserts.size() - 1));
-  }
+  deleteEdgesAndNodes(transaction, edits.deleteEdges, edits.deleteNodes);
 
-  if (!edits.deleteEdges.empty())
-  {
-    transaction.exec("delete from nav_edges where id in (" + edits.deleteEdges.substr(0, edits.deleteEdges.size() - 1) + ")");
-  }
-
-  if (!edits.deleteNodes.empty())
-  {
-    transaction.exec("delete from nav_nodes where id in (" + edits.deleteNodes.substr(0, edits.deleteNodes.size() - 1) + ")");
-  }
-
-  if (!edits.updateEdges.str().empty())
-  {
-    auto updates = edits.updateEdges.str();
-    updates.pop_back();
-  
-    transaction.exec(
-      R"%(
-        update nav_edges
-        set fraction = t.fraction,
-          reverse_edge_id = t.reverse_edge_id,
-          forward_edge_id = t.forward_edge_id
-        from (values )%"
-      + updates
-      + ") as t(edge_id, fraction, reverse_edge_id, forward_edge_id) where t.edge_id = nav_edges.id");
-  }
+  updateEdges(transaction, edits.lineEdges);
+  updateEdges(transaction, edits.otherEdges);
 }
 
 Profiler eachIteration("eachIteration");
@@ -683,13 +731,12 @@ std::tuple<Node, std::vector<Json::Value>> GraphBuilder::makeNodeFromRow (
   for (const auto &edge: edges)
   {
     auto lineId = edge[0].asInt();
-    auto pointIndex = edge[1].asInt();
-    auto fraction = edge[2].asDouble();
+    auto fraction = edge[1].asDouble();
+    auto pointIndex = edge[2].asInt();
 
     // if (otherLineId != lineId1 || otherPointIndex != pointIndex)
     {
-      node.m_currentEdges.emplace_back(
-        -1,
+      node.m_edges.emplace_back(
         lineId,
         pointIndex,
         fraction
@@ -697,9 +744,9 @@ std::tuple<Node, std::vector<Json::Value>> GraphBuilder::makeNodeFromRow (
     }
   }
 
-  std::set<Edge> set(node.m_currentEdges.begin(), node.m_currentEdges.end());
-  node.m_currentEdges.assign(set.begin(), set.end());
-  std::sort(node.m_currentEdges.begin(), node.m_currentEdges.end());
+  std::set<Edge> set(node.m_edges.begin(), node.m_edges.end());
+  node.m_edges.assign(set.begin(), set.end());
+  std::sort(node.m_edges.begin(), node.m_edges.end());
 
   return {node, nodeIds};
 }
@@ -761,14 +808,14 @@ std::vector<Node> GraphBuilder::getProposedNodes(
 }
 
 
-std::vector<Node> GraphBuilder::getExistingNodes (
+std::vector<ExistingNode> GraphBuilder::getExistingNodes (
   DBTransaction &transaction,
   int64_t lineId,
   const LatLngBounds &bounds
 )
 {
 	Json::Reader reader;
-  std::vector<Node> existingNodes;
+  std::vector<ExistingNode> existingNodes;
 
   queryExisting.start();
   auto rows = transaction.exec(m_queryExistingEdges, lineId);
@@ -781,7 +828,7 @@ std::vector<Node> GraphBuilder::getExistingNodes (
     reader.parse(row["latlng"].as<std::string>(), latlng);
     bool sameQuadrangle = bounds.contains(latlng);
 
-    Node node {row["node_id"].as<int>(), row["way"].as<std::string>(), sameQuadrangle};
+    ExistingNode node {row["node_id"].as<int>(), row["way"].as<std::string>(), sameQuadrangle};
 
     Json::Value edges;
     reader.parse(row["edges"].as<std::string>(), edges);
@@ -795,7 +842,15 @@ std::vector<Node> GraphBuilder::getExistingNodes (
         fraction = edge["fraction"].asDouble();
       }
 
-      node.m_currentEdges.emplace_back(edge["id"].asInt(), edge["lineId"].asInt(), edge["pointIndex"].asInt(), fraction);
+      Edge e(edge["lineId"].asInt(), edge["pointIndex"].asInt(), fraction);
+      e.id = edge["id"].asInt();
+      e.nodeId = node.m_nodeId;
+      e.forwardCost = edge["forwardCost"].asDouble();
+      e.reverseCost = edge["reverseCost"].asDouble();
+      e.forwardEdgeId = edge["forwardEdgeId"].asInt();
+      e.reverseEdgeId = edge["reverseEdgeId"].asInt();
+
+      node.m_edges.push_back(e);
     }
 
     existingNodes.push_back(node);

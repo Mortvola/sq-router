@@ -1358,6 +1358,9 @@ Napi::Promise::Deferred PathFinder::postTask(
             deferred.Reject(Napi::String::New(deferred.Env(), "Error"));
           });
       }
+      catch(...) {
+        std::cerr << "unknown error" << std::endl;
+      }
     }
   );
 

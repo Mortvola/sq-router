@@ -12,9 +12,8 @@ namespace gb
 class Edge
 {
 public:
-  Edge (int id, int lid, int index, double f)
+  Edge (int lid, int index, double f)
   :
-    edgeId(id),
     lineId(lid),
     pointIndex(index),
     fraction(f)
@@ -25,17 +24,39 @@ public:
   Edge &operator=(const Edge &other) = default;
   Edge &operator=(Edge &&other) = default;
 
-  int edgeId;
-  int lineId;
-  int pointIndex;
-  double fraction;
+  int id {-1};
+  int lineId {-1};
+  int pointIndex {-1};
+  int nodeId {-1};
+  double fraction {0};
+  double forwardCost {0};
+  double reverseCost {0};
   int forwardEdgeId {-1};
   int reverseEdgeId {-1};
+
 private:
 };
 
 bool operator==(const Edge &a, const Edge &b);
 bool operator<(const Edge &a, const Edge &b);
+
+struct EdgeUpdate
+{
+  enum class Operation
+  {
+    update,
+    insert
+  };
+
+  EdgeUpdate(Operation o, Edge *e)
+  :
+    operation(o),
+    edge(e)
+  {}
+
+  Operation operation;
+  Edge *edge;
+};
 
 class Node
 {
@@ -55,37 +76,32 @@ public:
     m_sameQuadrangle(sameQuadrangle)
   {};
 
-  std::vector<Edge> m_currentEdges;
+  std::vector<Edge> m_edges;
 
   int m_nodeId {-1};
   std::string m_way;
   bool m_sameQuadrangle {false};
 };
 
-enum class Operation
+class ExistingNode
 {
-  update,
-  insert
-};
-
-struct UpdateRec
-{
-  UpdateRec(int id, int pi, Operation o, int ni, const Edge *e1, const Edge *e2)
+public:
+  ExistingNode(
+    int id,
+    const std::string &w,
+    bool sameQuadrangle
+  )
   :
-    edgeId (id),
-    pointIndex(pi),
-    operation(o),
-    nodeId(ni),
-    edge1(e1),
-    edge2(e2)
-  {}
+    m_nodeId(id),
+    m_way(w),
+    m_sameQuadrangle(sameQuadrangle)
+  {};
 
-  int edgeId {-1};
-  int pointIndex;
-  Operation operation;
-  int nodeId;
-  const Edge *edge1;
-  const Edge *edge2;
+  std::vector<Edge> m_edges;
+
+  int m_nodeId;
+  std::string m_way;
+  bool m_sameQuadrangle {false};
 };
 
 class GraphBuilder
@@ -125,7 +141,7 @@ private:
 
   void modifyNodes(
     DBTransaction &transaction,
-    const std::vector<Node> &existingNodes,
+    const std::vector<ExistingNode> &existingNodes,
     std::vector<Node> &newNodes,
     int64_t lineId,
     Json::Value &status);
@@ -142,7 +158,7 @@ private:
     const LatLngBounds &bounds,
     Json::Value &status);
 
-  std::vector<Node> getExistingNodes (
+  std::vector<ExistingNode> getExistingNodes (
     DBTransaction &transaction,
     int64_t lineId,
     const LatLngBounds &bounds);
@@ -151,19 +167,29 @@ private:
 
   struct EditLists
   {
-    std::vector<UpdateRec> lineEdges;
-    std::stringstream updateEdges;
-    std::stringstream insertEdges;
+    std::vector<EdgeUpdate> lineEdges;
+    std::vector<EdgeUpdate> otherEdges;
     std::string deleteEdges;
     std::string deleteNodes;
   };
 
   EditLists makeEditLists(
     DBTransaction &transaction,
-    const std::vector<Node> &existingNodes,
+    const std::vector<ExistingNode> &existingNodes,
     std::vector<Node> &proposedNodes,
     int64_t lineId,
     Json::Value &status);
+
+  void setEdgeRelationsAndCosts(
+    DBTransaction &transaction,
+    int lineId,
+    std::vector<EdgeUpdate> &lineEdges);
+
+  std::tuple<double, double> getEdgeCosts(
+    DBTransaction &transaction,
+    int lineId,
+    double startFraction,
+    double endFraction);
 
   PreparedStatement m_queryIntersections;
   PreparedStatement m_queryIntersectionPoints;

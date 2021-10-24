@@ -362,7 +362,10 @@ void updateNavEdgeCosts(const std::vector<std::vector<int>> &areas)
         join nav_edges AS e1 on e1.line_id = route.line_id
         join nav_edges AS e2 on e2.reverse_edge_id = e1.id and e1.forward_edge_id = e2.id and e1.line_id = e2.line_id
         where e1.forward_edge_id != -1
-      	and route.way2 && ST_SetSRID(ST_MakeBox2D(ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857), ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)), 3857)
+      	and route.way2 && ST_SetSRID(ST_MakeBox2D(
+          ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857),
+          ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)
+        ), 3857)
       )%"
     );
   
