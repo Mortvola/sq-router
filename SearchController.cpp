@@ -423,7 +423,8 @@ int SearchController::insertNode(TrailInfo &terminus)
       // There is a node on this split line before the new node. We need to fixup it's edge to point to the new node.
       auto previousNode = (newNodeIter - 1)->second;
       auto edge = previousNode->edges()[1];
-      edge->m_edgeEnd[Edge::EndType::End].m_nodeId = newNode->getNodeId();
+      edge->m_edgeEnd[Edge::EndType::End].m_nodeId = nodeId;
+      edge->m_edgeEnd[Edge::EndType::End].m_node = newNode;
       edge->m_edgeEnd[Edge::EndType::End].m_fraction = terminus.m_fraction;
 
       newNode->addEdge(edge);
@@ -468,7 +469,8 @@ int SearchController::insertNode(TrailInfo &terminus)
         // There is a node on this split line after the new node. We need to fixup it's edge to point to the new node.
         auto nextNode = (newNodeIter + 1)->second;
         auto edge = nextNode->edges()[0];
-        edge->m_edgeEnd[Edge::EndType::Start].m_nodeId = newNode->getNodeId();
+        edge->m_edgeEnd[Edge::EndType::Start].m_nodeId = nodeId;
+        edge->m_edgeEnd[Edge::EndType::Start].m_node = newNode;
         edge->m_edgeEnd[Edge::EndType::Start].m_fraction = terminus.m_fraction;
 
         newNode->addEdge(edge);
