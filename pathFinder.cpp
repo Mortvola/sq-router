@@ -17,7 +17,7 @@
 #include "SearchController.h"
 #include "SearchLogEntry.h"
 #include "configuration.h"
-#include "graphBuilder.h"
+#include "GraphBuilder/graphBuilder.h"
 #include "StatusUpdate.h"
 #include "JsonToNapi.h"
 #include <algorithm>

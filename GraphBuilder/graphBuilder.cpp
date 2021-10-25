@@ -384,7 +384,7 @@ std::tuple<std::string, std::vector<EdgeUpdate>, std::vector<EdgeUpdate>> compar
 
 GraphBuilder::EditLists GraphBuilder::makeEditLists(
   DBTransaction &transaction,
-  const std::vector<ExistingNode> &existingNodes,
+  const std::vector<Node> &existingNodes,
   std::vector<Node> &proposedNodes,
   int64_t lineId,
   Json::Value &status
@@ -668,7 +668,7 @@ void deleteEdgesAndNodes(
 
 void GraphBuilder::modifyNodes(
   DBTransaction &transaction,
-  const std::vector<ExistingNode> &existingNodes,
+  const std::vector<Node> &existingNodes,
   std::vector<Node> &proposedNodes,
   int64_t lineId,
   Json::Value &status)
@@ -808,14 +808,14 @@ std::vector<Node> GraphBuilder::getProposedNodes(
 }
 
 
-std::vector<ExistingNode> GraphBuilder::getExistingNodes (
+std::vector<Node> GraphBuilder::getExistingNodes (
   DBTransaction &transaction,
   int64_t lineId,
   const LatLngBounds &bounds
 )
 {
 	Json::Reader reader;
-  std::vector<ExistingNode> existingNodes;
+  std::vector<Node> existingNodes;
 
   queryExisting.start();
   auto rows = transaction.exec(m_queryExistingEdges, lineId);
@@ -828,7 +828,7 @@ std::vector<ExistingNode> GraphBuilder::getExistingNodes (
     reader.parse(row["latlng"].as<std::string>(), latlng);
     bool sameQuadrangle = bounds.contains(latlng);
 
-    ExistingNode node {row["node_id"].as<int>(), row["way"].as<std::string>(), sameQuadrangle};
+    Node node {row["node_id"].as<int>(), row["way"].as<std::string>(), sameQuadrangle};
 
     Json::Value edges;
     reader.parse(row["edges"].as<std::string>(), edges);
