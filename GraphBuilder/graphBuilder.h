@@ -36,23 +36,18 @@ private:
 
   void buildGraphInArea(
     DBTransaction &transaction,
-    const LatLngBounds &bounds,
-    int nodeCount,
-    int max);
+    const LatLngBounds &bounds);
 
   void updateIntersections (
     DBTransaction &transaction,
     const LatLngBounds &bounds,
-    pqxx::result &intersections,
-    int nodeCount,
-    int max);
+    pqxx::result &intersections);
 
   void modifyNodes(
     DBTransaction &transaction,
     const std::vector<Node> &existingNodes,
     std::vector<Node> &newNodes,
-    int64_t lineId,
-    Json::Value &status);
+    int64_t lineId);
 
   std::tuple<int, int> getNodeCounts(
     DBTransaction &transaction,
@@ -62,16 +57,17 @@ private:
   std::vector<Node> getProposedNodes(
     DBTransaction &transaction,
     int64_t lineId,
-    const std::string &others,
-    const LatLngBounds &bounds,
-    Json::Value &status);
+    const LatLngBounds &bounds);
 
   std::vector<Node> getExistingNodes (
     DBTransaction &transaction,
     int64_t lineId,
     const LatLngBounds &bounds);
 
-  std::tuple<Node, std::vector<Json::Value>> makeNodeFromRow (const pqxx::row &row, const LatLngBounds &bounds);
+  std::tuple<Node, std::vector<Json::Value>> makeNodeFromRow (
+    DBTransaction &transaction,
+    const pqxx::row &row,
+    const LatLngBounds &bounds);
 
   struct EditLists
   {
@@ -85,8 +81,7 @@ private:
     DBTransaction &transaction,
     const std::vector<Node> &existingNodes,
     std::vector<Node> &proposedNodes,
-    int64_t lineId,
-    Json::Value &status);
+    int64_t lineId);
 
   void setEdgeRelationsAndCosts(
     DBTransaction &transaction,
