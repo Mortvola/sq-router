@@ -8,7 +8,8 @@
   "license": "MIT",
   "scripts": {
     "build": "node-gyp build",
-    "build:dev": "node-gyp build --debug"
+    "build:dev": "node-gyp build --debug",
+    "configure": "node-gyp configure"
   },
   "author": "Richard Shields",
   "publishConfig": {
