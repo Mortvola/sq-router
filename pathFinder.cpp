@@ -140,6 +140,7 @@ Napi::Object PathFinder::Init(Napi::Env env, Napi::Object exports) {
           InstanceMethod("elevation", &PathFinder::elevation),
           InstanceMethod("elevationArea", &PathFinder::elevationArea),
           InstanceMethod("elevationTile", &PathFinder::elevationTile),
+          InstanceMethod("getGeneratePathsQueue", &PathFinder::getGeneratePathsQueue),
           InstanceMethod("generatePaths", &PathFinder::generatePaths),
           InstanceMethod("deleteGeneratePathRequest", &PathFinder::deleteGeneratePathRequest),
           InstanceMethod("getHikeDistance", &PathFinder::getHikeDistance),
@@ -1064,6 +1065,25 @@ void PathFinder::updateNavEdgeCosts(const Napi::CallbackInfo &info) {
       ::updateNavEdgeCosts(areas);
     }
   );
+}
+
+Napi::Value PathFinder::getGeneratePathsQueue(const Napi::CallbackInfo &info) {
+  Napi::Env env = info.Env();
+
+  if (info.Length() != 0) {
+    Napi::TypeError::New(env, "No parameters expected").ThrowAsJavaScriptException();
+  }
+
+  auto queue = m_graphBuilder->getQueue();
+
+  auto array = Napi::Array::New(env, queue.size());
+
+  for (size_t i = 0; i < queue.size(); i++) {
+    Napi::HandleScope scope(env);
+    array[i] = convertToNapiValue(env, queue[i]);
+  }
+
+  return array;
 }
 
 void PathFinder::generatePaths(const Napi::CallbackInfo &info) {

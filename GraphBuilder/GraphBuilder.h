@@ -27,6 +27,8 @@ public:
 
   void deleteRequest(const LatLngBounds &bounds);
 
+  std::vector<LatLngBounds> getQueue();
+
   int updateIntersectionCount(
     DBTransaction &transaction,
     int lat,

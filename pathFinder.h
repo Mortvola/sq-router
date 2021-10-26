@@ -38,6 +38,7 @@ private:
   Napi::Value elevation(const Napi::CallbackInfo &info);
   Napi::Value elevationArea(const Napi::CallbackInfo &info);
   Napi::Value elevationTile(const Napi::CallbackInfo &info);
+  Napi::Value getGeneratePathsQueue(const Napi::CallbackInfo &info);
   void generatePaths(const Napi::CallbackInfo &info);
   void deleteGeneratePathRequest(const Napi::CallbackInfo &info);
   Napi::Value getHikeDistance(const Napi::CallbackInfo &info);

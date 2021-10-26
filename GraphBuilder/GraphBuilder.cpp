@@ -1079,4 +1079,18 @@ void GraphBuilder::start()
 	m_generateThread = std::thread(&GraphBuilder::generate, this);
 }
 
+std::vector<LatLngBounds> GraphBuilder::getQueue()
+{
+  std::vector<LatLngBounds> queue;
+
+  std::unique_lock<std::mutex> lock(m_generateQueueMutex);
+
+  for (const auto &entry: m_generateQueue)
+  {
+    queue.push_back(entry);
+  }
+
+  return queue;
+}
+
 } // namespace gb
