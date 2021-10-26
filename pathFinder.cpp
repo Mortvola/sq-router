@@ -17,7 +17,6 @@
 #include "SearchController.h"
 #include "SearchLogEntry.h"
 #include "configuration.h"
-#include "GraphBuilder/graphBuilder.h"
 #include "StatusUpdate.h"
 #include "JsonToNapi.h"
 #include <algorithm>
@@ -124,6 +123,9 @@ PathFinder::PathFinder(const Napi::CallbackInfo &info)
   configDB(m_configuration.databaseUsername,
             m_configuration.databasePassword,
             m_configuration.databaseHost, m_configuration.database);
+
+  m_graphBuilder = std::make_unique<gb::GraphBuilder>();
+  m_graphBuilder->start();
 }
 
 std::string runtimeDir;
@@ -139,6 +141,7 @@ Napi::Object PathFinder::Init(Napi::Env env, Napi::Object exports) {
           InstanceMethod("elevationArea", &PathFinder::elevationArea),
           InstanceMethod("elevationTile", &PathFinder::elevationTile),
           InstanceMethod("generatePaths", &PathFinder::generatePaths),
+          InstanceMethod("deleteGeneratePathRequest", &PathFinder::deleteGeneratePathRequest),
           InstanceMethod("generatePathsInArea", &PathFinder::generatePathsInArea),
           InstanceMethod("getHikeDistance", &PathFinder::getHikeDistance),
           InstanceMethod("getTrailInfo", &PathFinder::getTrailInfo),
@@ -591,15 +594,13 @@ void PathFinder::updateIntersectionCounts(const Napi::CallbackInfo &info)
       int north = south + 1;
       int east = west + 1;
 
-      gb::GraphBuilder graphBuilder;
-
       for (int lat = south; lat < north; lat++)
       {
         for (int lng = west; lng < east; lng++)
         {
           auto transaction = dbConnection->newTransaction ();
 
-          graphBuilder.updateIntersectionCount(transaction, lat, lng);
+          m_graphBuilder->updateIntersectionCount(transaction, lat, lng);
 
           transaction.commit();
         }
@@ -1075,33 +1076,29 @@ void PathFinder::generatePaths(const Napi::CallbackInfo &info) {
 
   auto request = info[0].As<Napi::Array>();
 
-  std::vector<std::vector<int>> areas;
+  int lat = request.Get(static_cast<uint32_t>(0)).As<Napi::Number>();
+  int lng = request.Get(static_cast<uint32_t>(1)).As<Napi::Number>();
 
-  for (size_t i = 0; i < request.Length(); i++)
-  {
-    auto point = request.Get(i).As<Napi::Array>();
-    int lat = point.Get(static_cast<uint32_t>(0)).As<Napi::Number>();
-    int lng = point.Get(static_cast<uint32_t>(1)).As<Napi::Number>();
+  LatLngBounds latLngBounds(lat, lng, lat + 1, lng + 1);
 
-    areas.push_back({lat, lng});
+  m_graphBuilder->postRequest(latLngBounds);
+}
+
+void PathFinder::deleteGeneratePathRequest(const Napi::CallbackInfo &info) {
+  Napi::Env env = info.Env();
+
+  if (info.Length() != 1 || !info[0].IsArray()) {
+    Napi::TypeError::New(env, "Object expected").ThrowAsJavaScriptException();
   }
 
-  postTask(
-    env,
-    [this, areas](Napi::Promise::Deferred deferred)
-    {
-      gb::GraphBuilder graphBuilder;
+  auto request = info[0].As<Napi::Array>();
 
-      for (const auto &area: areas)
-      {
-          std::cerr << "Building graph for (" << area[0] << ", " << area[1] << ")..." << std::endl;
+  int lat = request.Get(static_cast<uint32_t>(0)).As<Napi::Number>();
+  int lng = request.Get(static_cast<uint32_t>(1)).As<Napi::Number>();
 
-          graphBuilder.buildGraph(area[0], area[1]);
+  LatLngBounds latLngBounds(lat, lng, lat + 1, lng + 1);
 
-          std::cerr << "Finished" << std::endl;
-      }
-    }
-  );
+  m_graphBuilder->deleteRequest(latLngBounds);
 }
 
 void PathFinder::generatePathsInArea(const Napi::CallbackInfo &info) {
@@ -1130,13 +1127,11 @@ void PathFinder::generatePathsInArea(const Napi::CallbackInfo &info) {
     env,
     [this, areas](Napi::Promise::Deferred deferred)
     {
-      gb::GraphBuilder graphBuilder;
-
       for (const auto &area: areas)
       {
           std::cerr << "Building graph for " << area << std::endl;
 
-          graphBuilder.buildGraphInArea(area);
+          // m_graphBuilder->buildGraphInArea(area);
 
           std::cerr << "Finished" << std::endl;
       }

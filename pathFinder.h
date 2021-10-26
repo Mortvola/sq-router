@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Map.h"
+#include "GraphBuilder/GraphBuilder.h"
 #include <map>
 #include <memory>
 #include <condition_variable>
@@ -29,6 +30,8 @@ private:
 
   void initialize();
 
+  std::unique_ptr<gb::GraphBuilder> m_graphBuilder;
+
   static Napi::FunctionReference constructor;
 
   Napi::Value whatIsHere(const Napi::CallbackInfo &info);
@@ -36,6 +39,7 @@ private:
   Napi::Value elevationArea(const Napi::CallbackInfo &info);
   Napi::Value elevationTile(const Napi::CallbackInfo &info);
   void generatePaths(const Napi::CallbackInfo &info);
+  void deleteGeneratePathRequest(const Napi::CallbackInfo &info);
   void generatePathsInArea(const Napi::CallbackInfo &info);
   Napi::Value getHikeDistance(const Napi::CallbackInfo &info);
   Napi::Value getTrailInfo(const Napi::CallbackInfo &info);

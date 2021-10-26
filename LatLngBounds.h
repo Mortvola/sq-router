@@ -5,12 +5,29 @@
 class LatLngBounds
 {
 public:
+  LatLngBounds()
+  :
+    m_southWest(0, 0),
+    m_northEast(0, 0)
+  {
+  }
+
   LatLngBounds(double south, double west, double north, double east)
   :
     m_southWest(south, west),
     m_northEast(north, east)
   {
   }
+
+	bool operator== (const LatLngBounds &other) const
+	{
+		return m_southWest == other.m_southWest && m_northEast == other.m_northEast;
+	}
+
+	bool operator!= (const LatLngBounds &other) const
+	{
+		return !operator==(other);
+	}
 
   bool contains(const LatLng &latlng) const
   {

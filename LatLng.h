@@ -30,7 +30,7 @@ public:
     }
 	}
 
-	bool operator== (const LatLng &other)
+	bool operator== (const LatLng &other) const
 	{
 		return m_lat == other.m_lat && m_lng == other.m_lng;
 	}

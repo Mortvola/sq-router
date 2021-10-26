@@ -1,10 +1,10 @@
 /*
- * graphBuilder.cpp
+ * GraphBuilder.cpp
  *
  *  Created on: Dec 20, 2019
  *      Author: richard
  */
-#include "graphBuilder.h"
+#include "GraphBuilder.h"
 #include <iostream>
 #include <jsoncpp/json/json.h>
 #include "configuration.h"
@@ -842,7 +842,7 @@ std::vector<Node> GraphBuilder::getExistingNodes (
 }
 
 
-void GraphBuilder::updateIntersections (
+bool GraphBuilder::updateIntersections (
   DBTransaction &transaction,
   const LatLngBounds &bounds,
   pqxx::result &intersections
@@ -865,7 +865,7 @@ void GraphBuilder::updateIntersections (
   int routesProcessed {0};
 
 	// Iterate through the list of intersections
-  int completed = 0;
+  size_t completed = 0;
 	for (const auto &intersection: intersections)
 	{
     auto lineId = intersection["line_id"].as<int64_t>();
@@ -897,10 +897,16 @@ void GraphBuilder::updateIntersections (
 
       if (elapsedTime.count() >= 1)
       {
-        status["count"] = completed;
+        status["count"] = static_cast<unsigned int>(completed);
         statusUpdate(status);
         previousTime = now;
         std::cout << "Percent complete: " << completed / static_cast<double>(intersections.size()) * 100.0 << std::endl;
+
+        std::unique_lock<std::mutex> lock(m_generateQueueMutex);
+        if (m_generateQueue.size() == 0 || m_generateQueue.front() != bounds)
+        {
+          break;
+        }
       }
     }
     catch(...)
@@ -910,8 +916,10 @@ void GraphBuilder::updateIntersections (
     }
 	}
 
-  status["count"] = completed;
+  status["count"] = static_cast<unsigned int>(completed);
   statusUpdate(status);
+
+  return completed == intersections.size();
 }
 
 
@@ -978,46 +986,108 @@ std::tuple<int, int> GraphBuilder::getNodeCounts(DBTransaction &transaction, int
 void GraphBuilder::buildGraphInArea(
   const LatLngBounds &bounds
 ) {
+  Json::Value status = Json::objectValue;
+
+  status["status"] = StatusUpdatingRoutes;
+  status["lat"] = bounds.m_southWest.m_lat;
+  status["lng"] = bounds.m_southWest.m_lng;
+
+  statusUpdate(status);
+
   auto transaction = m_dbConnection->newTransaction();
 
-  buildGraphInArea(transaction, bounds);
-
-  transaction.commit();
-}
-
-void GraphBuilder::buildGraphInArea(
-  DBTransaction &transaction,
-  const LatLngBounds &bounds
-) {
 	auto intersections = transaction.exec(
     m_queryIntersections,
     bounds.m_southWest.m_lng, bounds.m_southWest.m_lat,
     bounds.m_northEast.m_lng, bounds.m_northEast.m_lat);
   
-	updateIntersections (
+	auto complete = updateIntersections (
     transaction,
     bounds,
     intersections);
+
+  if (complete) {
+    transaction.commit();
+  }
 }
 
 void GraphBuilder::buildGraph (
 	double lat,
 	double lng)
 {
-  Json::Value status = Json::objectValue;
+  // Json::Value status = Json::objectValue;
 
-  status["status"] = StatusUpdatingRoutes;
-  status["lat"] = lat;
-  status["lng"] = lng;
+  // status["status"] = StatusUpdatingRoutes;
+  // status["lat"] = lat;
+  // status["lng"] = lng;
 
-  statusUpdate(status);
+  // statusUpdate(status);
 
-  auto transaction = m_dbConnection->newTransaction();
+  // auto transaction = m_dbConnection->newTransaction();
 
-  LatLngBounds bounds(lat, lng, lat + 1, lng + 1);
-  buildGraphInArea(transaction, bounds);
+  // LatLngBounds bounds(lat, lng, lat + 1, lng + 1);
+  // buildGraphInArea(transaction, bounds);
 
-  transaction.commit();
+  // transaction.commit();
+}
+
+void GraphBuilder::postRequest(
+  const LatLngBounds &bounds
+)
+{
+  std::unique_lock<std::mutex> lock(m_generateQueueMutex);
+  m_generateQueue.push_back(bounds);
+  if (m_generateQueue.size() == 1) {
+    m_generateCondition.notify_all();
+  }
+}
+
+void GraphBuilder::deleteRequest(
+  const LatLngBounds &bounds
+)
+{
+  std::unique_lock<std::mutex> lock(m_generateQueueMutex);
+  auto iter = std::find_if(m_generateQueue.begin(), m_generateQueue.end(),
+    [bounds](const LatLngBounds &b) {
+      return b == bounds;
+    }
+  );
+
+  if (iter != m_generateQueue.end())
+  {
+    m_generateQueue.erase(iter);
+  }
+}
+
+void GraphBuilder::generate()
+{
+  for (;;)
+  {
+    LatLngBounds bounds;
+
+    {
+      std::unique_lock<std::mutex> lock(m_generateQueueMutex);
+
+      m_generateCondition.wait(lock, [this] { return m_generateQueue.size () > 0; });
+
+      bounds = m_generateQueue.front();;
+    }
+
+    buildGraphInArea(bounds);
+
+    {
+      std::unique_lock<std::mutex> lock(m_generateQueueMutex);
+      if (m_generateQueue.size() > 0 && m_generateQueue.front() == bounds)
+      {
+        m_generateQueue.pop_front();
+      }
+    }
+  }
+}
+
+void GraphBuilder::start()
+{
+	m_generateThread = std::thread(&GraphBuilder::generate, this);
 }
 
 } // namespace gb

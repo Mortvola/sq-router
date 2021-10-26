@@ -8,6 +8,9 @@
 #include <tuple>
 #include <map>
 #include <memory>
+#include <thread>
+#include <condition_variable>
+#include <deque>
 
 namespace gb
 {
@@ -17,6 +20,12 @@ class GraphBuilder
 public:
 
   GraphBuilder ();
+
+  void start();
+
+  void postRequest(const LatLngBounds &bounds);
+
+  void deleteRequest(const LatLngBounds &bounds);
 
   void buildGraph (
     double lat,
@@ -32,13 +41,17 @@ public:
 
 private:
 
+	std::mutex m_generateQueueMutex;
+  std::deque<LatLngBounds> m_generateQueue;
+
+	std::thread m_generateThread;
+	std::condition_variable m_generateCondition;
+
+  void generate();
+
   std::shared_ptr<DBConnection> m_dbConnection;
 
-  void buildGraphInArea(
-    DBTransaction &transaction,
-    const LatLngBounds &bounds);
-
-  void updateIntersections (
+  bool updateIntersections (
     DBTransaction &transaction,
     const LatLngBounds &bounds,
     pqxx::result &intersections);
