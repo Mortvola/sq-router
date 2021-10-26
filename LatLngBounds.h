@@ -44,6 +44,16 @@ public:
 		return os;
 	}
 
+	operator Json::Value () const
+	{
+		Json::Value value;
+
+		value["southWest"] = m_southWest;
+		value["northEast"] = m_northEast;
+
+		return value;
+	}
+
   LatLng m_southWest;
   LatLng m_northEast;
 

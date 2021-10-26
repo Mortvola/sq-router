@@ -25,7 +25,7 @@
             "Elevation.cpp",
             "ElevationFile.cpp",
             "DBConnection.cpp",
-            "GraphBuilder/graphBuilder.cpp",
+            "GraphBuilder/GraphBuilder.cpp",
             "Cost.cpp",
             "Map.cpp",
             "Route.cpp",

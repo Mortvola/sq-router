@@ -142,7 +142,6 @@ Napi::Object PathFinder::Init(Napi::Env env, Napi::Object exports) {
           InstanceMethod("elevationTile", &PathFinder::elevationTile),
           InstanceMethod("generatePaths", &PathFinder::generatePaths),
           InstanceMethod("deleteGeneratePathRequest", &PathFinder::deleteGeneratePathRequest),
-          InstanceMethod("generatePathsInArea", &PathFinder::generatePathsInArea),
           InstanceMethod("getHikeDistance", &PathFinder::getHikeDistance),
           InstanceMethod("getTrailInfo", &PathFinder::getTrailInfo),
           InstanceMethod("findRoute", &PathFinder::findRoute),
@@ -1076,12 +1075,17 @@ void PathFinder::generatePaths(const Napi::CallbackInfo &info) {
 
   auto request = info[0].As<Napi::Array>();
 
-  int lat = request.Get(static_cast<uint32_t>(0)).As<Napi::Number>();
-  int lng = request.Get(static_cast<uint32_t>(1)).As<Napi::Number>();
+  LatLngBounds bounds;
 
-  LatLngBounds latLngBounds(lat, lng, lat + 1, lng + 1);
+  auto latlng = request.Get(static_cast<uint32_t>(0)).As<Napi::Array>();
+  bounds.m_southWest.m_lat = latlng.Get(static_cast<uint32_t>(0)).As<Napi::Number>();
+  bounds.m_southWest.m_lng = latlng.Get(static_cast<uint32_t>(1)).As<Napi::Number>();
 
-  m_graphBuilder->postRequest(latLngBounds);
+  latlng = request.Get(static_cast<uint32_t>(1)).As<Napi::Array>();
+  bounds.m_northEast.m_lat = latlng.Get(static_cast<uint32_t>(0)).As<Napi::Number>();
+  bounds.m_northEast.m_lng = latlng.Get(static_cast<uint32_t>(1)).As<Napi::Number>();
+
+  m_graphBuilder->postRequest(bounds);
 }
 
 void PathFinder::deleteGeneratePathRequest(const Napi::CallbackInfo &info) {
@@ -1093,50 +1097,17 @@ void PathFinder::deleteGeneratePathRequest(const Napi::CallbackInfo &info) {
 
   auto request = info[0].As<Napi::Array>();
 
-  int lat = request.Get(static_cast<uint32_t>(0)).As<Napi::Number>();
-  int lng = request.Get(static_cast<uint32_t>(1)).As<Napi::Number>();
+  LatLngBounds bounds;
 
-  LatLngBounds latLngBounds(lat, lng, lat + 1, lng + 1);
+  auto latlng = request.Get(static_cast<uint32_t>(0)).As<Napi::Array>();
+  bounds.m_southWest.m_lat = latlng.Get(static_cast<uint32_t>(0)).As<Napi::Number>();
+  bounds.m_southWest.m_lng = latlng.Get(static_cast<uint32_t>(1)).As<Napi::Number>();
 
-  m_graphBuilder->deleteRequest(latLngBounds);
-}
+  latlng = request.Get(static_cast<uint32_t>(1)).As<Napi::Array>();
+  bounds.m_northEast.m_lat = latlng.Get(static_cast<uint32_t>(0)).As<Napi::Number>();
+  bounds.m_northEast.m_lng = latlng.Get(static_cast<uint32_t>(1)).As<Napi::Number>();
 
-void PathFinder::generatePathsInArea(const Napi::CallbackInfo &info) {
-  Napi::Env env = info.Env();
-
-  if (info.Length() != 1 || !info[0].IsArray()) {
-    Napi::TypeError::New(env, "Object expected").ThrowAsJavaScriptException();
-  }
-
-  auto request = info[0].As<Napi::Array>();
-
-  std::vector<LatLngBounds> areas;
-
-  for (size_t i = 0; i < request.Length(); i++)
-  {
-    auto point = request.Get(i).As<Napi::Array>();
-    double south = point.Get(static_cast<uint32_t>(0)).As<Napi::Number>();
-    double west = point.Get(static_cast<uint32_t>(1)).As<Napi::Number>();
-    double north = point.Get(static_cast<uint32_t>(2)).As<Napi::Number>();
-    double east = point.Get(static_cast<uint32_t>(3)).As<Napi::Number>();
-
-    areas.push_back({south, west, north, east});
-  }
-
-  postTask(
-    env,
-    [this, areas](Napi::Promise::Deferred deferred)
-    {
-      for (const auto &area: areas)
-      {
-          std::cerr << "Building graph for " << area << std::endl;
-
-          // m_graphBuilder->buildGraphInArea(area);
-
-          std::cerr << "Finished" << std::endl;
-      }
-    }
-  );
+  m_graphBuilder->deleteRequest(bounds);
 }
 
 Json::Value AnchorsToJson(const std::vector<std::vector<Anchor>> &anchors) {

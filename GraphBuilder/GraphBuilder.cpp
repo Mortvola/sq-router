@@ -852,8 +852,7 @@ bool GraphBuilder::updateIntersections (
   Json::Value status = Json::objectValue;
 
   status["status"] = StatusRoutesUpdated;
-  status["lat"] = bounds.m_southWest.m_lat;
-  status["lng"] = bounds.m_southWest.m_lng;
+  status["bounds"] = bounds;
   status["count"] = 0;
   status["max"] = static_cast<unsigned int>(intersections.size());
   statusUpdate(status);
@@ -1011,26 +1010,6 @@ void GraphBuilder::buildGraphInArea(
   }
 }
 
-void GraphBuilder::buildGraph (
-	double lat,
-	double lng)
-{
-  // Json::Value status = Json::objectValue;
-
-  // status["status"] = StatusUpdatingRoutes;
-  // status["lat"] = lat;
-  // status["lng"] = lng;
-
-  // statusUpdate(status);
-
-  // auto transaction = m_dbConnection->newTransaction();
-
-  // LatLngBounds bounds(lat, lng, lat + 1, lng + 1);
-  // buildGraphInArea(transaction, bounds);
-
-  // transaction.commit();
-}
-
 void GraphBuilder::postRequest(
   const LatLngBounds &bounds
 )
@@ -1056,6 +1035,11 @@ void GraphBuilder::deleteRequest(
   if (iter != m_generateQueue.end())
   {
     m_generateQueue.erase(iter);
+
+    Json::Value status = Json::objectValue;
+    status["status"] = StatusGenRequestRemoved;
+    status["bounds"] = bounds;
+    statusUpdate(status);
   }
 }
 
@@ -1080,6 +1064,11 @@ void GraphBuilder::generate()
       if (m_generateQueue.size() > 0 && m_generateQueue.front() == bounds)
       {
         m_generateQueue.pop_front();
+
+        Json::Value status = Json::objectValue;
+        status["status"] = StatusGenRequestRemoved;
+        status["bounds"] = bounds;
+        statusUpdate(status);
       }
     }
   }

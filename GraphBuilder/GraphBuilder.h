@@ -27,13 +27,6 @@ public:
 
   void deleteRequest(const LatLngBounds &bounds);
 
-  void buildGraph (
-    double lat,
-    double lng);
-
-  void buildGraphInArea(
-    const LatLngBounds &bounds);
-
   int updateIntersectionCount(
     DBTransaction &transaction,
     int lat,
@@ -50,6 +43,9 @@ private:
   void generate();
 
   std::shared_ptr<DBConnection> m_dbConnection;
+
+  void buildGraphInArea(
+    const LatLngBounds &bounds);
 
   bool updateIntersections (
     DBTransaction &transaction,
