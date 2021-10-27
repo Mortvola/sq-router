@@ -8,7 +8,7 @@
 #include <pqxx/pqxx>
 #include "Map.h"
 #include "Elevation.h"
-#include "DBConnection.h"
+#include "./Database/DBConnection.h"
 #include "Cost.h"
 #include <jsoncpp/json/json.h>
 #include <iostream>

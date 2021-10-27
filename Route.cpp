@@ -7,7 +7,7 @@
 
 #include "Route.h"
 #include "Cost.h"
-#include "DBConnection.h"
+#include "./Database/DBConnection.h"
 #include "Elevation.h"
 #include "Map.h"
 #include <iostream>

@@ -10,7 +10,7 @@
 #include <shared_mutex>
 #include <optional>
 #include <jsoncpp/json/json.h>
-#include "DBConnection.h"
+#include "./Database/DBConnection.h"
 
 constexpr int Graph::NodeIdNone;
 

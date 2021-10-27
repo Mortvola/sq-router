@@ -11,7 +11,7 @@
 #include "Node.h"
 #include "Edge.h"
 #include "Map.h"
-#include "DBConnection.h"
+#include "./Database/DBConnection.h"
 #include "Profiler.h"
 #include <pqxx/pqxx>
 #include <map>

@@ -8,7 +8,7 @@
 #pragma once
 
 #include "Point.h"
-#include "DBConnection.h"
+#include "./Database/DBConnection.h"
 #include <vector>
 
 class RoutePoint {

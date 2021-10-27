@@ -8,7 +8,7 @@
 #include <iostream>
 #include <jsoncpp/json/json.h>
 #include "configuration.h"
-#include "DBConnection.h"
+#include "./Database/DBConnection.h"
 #include "Cost.h"
 #include "Elevation.h"
 #include "Profiler.h"

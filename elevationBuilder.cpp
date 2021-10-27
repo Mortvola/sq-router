@@ -1,4 +1,4 @@
-#include "DBConnection.h"
+#include "./Database/DBConnection.h"
 #include "configuration.h"
 #include <tuple>
 #include <iostream>

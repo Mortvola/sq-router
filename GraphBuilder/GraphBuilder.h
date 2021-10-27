@@ -1,7 +1,7 @@
 #pragma once
 
 #include "LatLngBounds.h"
-#include "DBConnection.h"
+#include "./Database/DBConnection.h"
 #include "Node.h"
 #include "Edge.h"
 #include "EdgeUpdate.h"

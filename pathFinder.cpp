@@ -7,7 +7,7 @@
 
 #include "pathFinder.h"
 #include "Cost.h"
-#include "DBConnection.h"
+#include "./Database/DBConnection.h"
 #include "Elevation.h"
 #include "Graph.h"
 #include "Map.h"

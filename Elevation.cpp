@@ -1,5 +1,5 @@
 #include "Elevation.h"
-#include "DBConnection.h"
+#include "./Database/DBConnection.h"
 #include "Profiler.h"
 #include <cinttypes>
 #include <cmath>

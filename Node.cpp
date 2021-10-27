@@ -1,5 +1,5 @@
 #include "Node.h"
-#include "DBConnection.h"
+#include "./Database/DBConnection.h"
 #include "Elevation.h"
 #include <algorithm>
 
