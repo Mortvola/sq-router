@@ -2,6 +2,10 @@
 
 double BiDiAStarSearch::getNodeSortCost(const std::shared_ptr<SearchNode> &node)
 {
+  if (node == nullptr) {
+    return 0;
+  }
+
   return getPotentialPathCost(node);
 }
 

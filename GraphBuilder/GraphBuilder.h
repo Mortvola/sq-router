@@ -29,11 +29,6 @@ public:
 
   std::vector<LatLngBounds> getQueue();
 
-  int updateIntersectionCount(
-    DBTransaction &transaction,
-    int lat,
-    int lng);
-
   std::shared_ptr<DBConnection> dbConnection()
   {
     return m_dbConnection;
@@ -115,8 +110,11 @@ private:
   PreparedStatement m_queryExistingEdges;
   PreparedStatement m_insertNode;
   PreparedStatement m_deleteEdges;
-  PreparedStatement m_intersectionQuery;
-  PreparedStatement m_updateCount;
 };
+
+int updateIntersectionCount(
+  DBTransaction &transaction,
+  int lat,
+  int lng);
 
 } // namespace gb

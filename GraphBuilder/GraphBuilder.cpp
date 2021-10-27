@@ -129,57 +129,7 @@ GraphBuilder::GraphBuilder()
     m_dbConnection,
     R"%(
       delete from nav_edges where node_id = $1
-    )%"),
-  m_intersectionQuery (
-    m_dbConnection,
-    R"%(
-      with points as (
-        select ST_DumpPoints(l1.way2) AS point, ST_NumPoints(l1.way2) as length
-        from planet_osm_route l1
-        where ST_Intersects(l1.way,
-          ST_SetSRID(ST_MakeBox2D(
-            ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857),
-            ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)
-          ), 3857)
-        ) 
-      )
-
-      select count(*) AS count
-      from (
-        select point
-        from (
-          select (p0.point).geom AS point
-          from points as p0
-          UNION ALL
-          select (p1.point).geom as point
-          from points as p1
-          where (p1.point).path[1] = 1
-          UNION ALL
-          select (p2.point).geom as point
-          from points as p2
-          where (p2.point).path[1] = p2.length
-        ) AS p1
-        where ST_Intersects(p1.point,
-          ST_SetSRID(ST_MakeBox2D(
-            ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857),
-            ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)
-          ), 3857)
-        ) 
-        group by point
-        having count(*) > 1
-      ) as total
-    )%"
-  ),
-  m_updateCount(
-    m_dbConnection,
-    R"%(
-      INSERT INTO quad_intersection_counts (created_at, updated_at, lat, lng, intersection_count)
-      VALUES (now(), now(), $1, $2, $3)
-      ON CONFLICT (lat, lng)
-      DO UPDATE SET updated_at = now(), intersection_count = $3
-      RETURNING id
-    )%"
-  )
+    )%")
 {
 }
 
@@ -907,14 +857,66 @@ bool GraphBuilder::updateIntersections (
 }
 
 
-int GraphBuilder::updateIntersectionCount(
+std::string intersectionQuery()
+{
+  return R"%(
+    with points as (
+      select ST_DumpPoints(l1.way2) AS point, ST_NumPoints(l1.way2) as length
+      from planet_osm_route l1
+      where ST_Intersects(l1.way,
+        ST_SetSRID(ST_MakeBox2D(
+          ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857),
+          ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)
+        ), 3857)
+      ) 
+    )
+
+    select count(*) AS count
+    from (
+      select point
+      from (
+        select (p0.point).geom AS point
+        from points as p0
+        UNION ALL
+        select (p1.point).geom as point
+        from points as p1
+        where (p1.point).path[1] = 1
+        UNION ALL
+        select (p2.point).geom as point
+        from points as p2
+        where (p2.point).path[1] = p2.length
+      ) AS p1
+      where ST_Intersects(p1.point,
+        ST_SetSRID(ST_MakeBox2D(
+          ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857),
+          ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)
+        ), 3857)
+      ) 
+      group by point
+      having count(*) > 1
+    ) as total
+  )%";
+}
+
+std::string updateCountQuery()
+{
+  return R"%(
+    INSERT INTO quad_intersection_counts (created_at, updated_at, lat, lng, intersection_count)
+    VALUES (now(), now(), $1, $2, $3)
+    ON CONFLICT (lat, lng)
+    DO UPDATE SET updated_at = now(), intersection_count = $3
+    RETURNING id
+  )%";
+}
+
+int updateIntersectionCount(
   DBTransaction &transaction,
   int lat,
   int lng)
 {
-  auto count = transaction.exec1(m_intersectionQuery, lng, lat);
+  auto count = transaction.exec1(intersectionQuery(), lng, lat);
 
-  auto id = transaction.exec1(m_updateCount, lat, lng, count["count"].as<int>());
+  auto id = transaction.exec1(updateCountQuery(), lat, lng, count["count"].as<int>());
 
   Json::Value status = Json::objectValue;
   status["status"] = StatusUpdateIntersectionCount;

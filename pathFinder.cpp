@@ -598,9 +598,9 @@ void PathFinder::updateIntersectionCounts(const Napi::CallbackInfo &info)
       {
         for (int lng = west; lng < east; lng++)
         {
-          auto transaction = m_graphBuilder->dbConnection()->newTransaction ();
+          auto transaction = dbConnection->newTransaction ();
 
-          m_graphBuilder->updateIntersectionCount(transaction, lat, lng);
+          gb::updateIntersectionCount(transaction, lat, lng);
 
           transaction.commit();
         }
