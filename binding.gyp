@@ -13,8 +13,7 @@
             '-std=c++17',
             '-Wno-shadow',
             '-fPIC',
-            '-O0',
-            '-g'
+            '-O2'
         	],
         'cflags_cc!': [
           '-fno-rtti',

@@ -87,33 +87,6 @@ GraphBuilder::GraphBuilder()
       where array_length(edges, 1) > 1
       OR edges[1][2] = 0
       OR edges[1][2] = 1
-    )%"),
-  m_countIntersectionPoints(
-    m_dbConnection,
-    R"%(
-      select count(*)
-      from (
-        select point --, count(*)
-        from (
-          select (p0.point).geom AS point
-          from (
-            select ST_DumpPoints(l1.way2) AS point
-            from planet_osm_route l1
-            where ST_Intersects(l1.way, ST_SetSRID(ST_MakeBox2D(ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857), ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)), 3857)) 
-          ) AS p0
-          UNION ALL
-          select ST_PointN(l1.way2, 1) AS point
-          from planet_osm_route l1
-          where ST_Intersects(l1.way, ST_SetSRID(ST_MakeBox2D(ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857), ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)), 3857)) 
-          UNION ALL
-          select ST_PointN(l1.way2, ST_NumPoints(l1.way2)) AS point
-          from planet_osm_route l1
-          where ST_Intersects(l1.way, ST_SetSRID(ST_MakeBox2D(ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857), ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)), 3857)) 
-        ) AS p1
-        where ST_Intersects(p1.point, ST_SetSRID(ST_MakeBox2D(ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857), ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)), 3857)) 
-        group by point
-        having count(*) > 1
-      ) as total
     )%"
   ),
   m_queryExistingEdges (
@@ -160,32 +133,44 @@ GraphBuilder::GraphBuilder()
   m_intersectionQuery (
     m_dbConnection,
     R"%(
+      with points as (
+        select ST_DumpPoints(l1.way2) AS point, ST_NumPoints(l1.way2) as length
+        from planet_osm_route l1
+        where ST_Intersects(l1.way,
+          ST_SetSRID(ST_MakeBox2D(
+            ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857),
+            ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)
+          ), 3857)
+        ) 
+      )
+
       select count(*) AS count
       from (
         select point
         from (
           select (p0.point).geom AS point
-          from (
-            select ST_DumpPoints(l1.way2) AS point
-            from planet_osm_route l1
-            where ST_Intersects(l1.way, ST_SetSRID(ST_MakeBox2D(ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857), ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)), 3857)) 
-          ) AS p0
+          from points as p0
           UNION ALL
-          select ST_PointN(l1.way2, 1) AS point
-          from planet_osm_route l1
-          where ST_Intersects(l1.way, ST_SetSRID(ST_MakeBox2D(ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857), ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)), 3857)) 
+          select (p1.point).geom as point
+          from points as p1
+          where (p1.point).path[1] = 1
           UNION ALL
-          select ST_PointN(l1.way2, ST_NumPoints(l1.way2)) AS point
-          from planet_osm_route l1
-          where ST_Intersects(l1.way, ST_SetSRID(ST_MakeBox2D(ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857), ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)), 3857)) 
+          select (p2.point).geom as point
+          from points as p2
+          where (p2.point).path[1] = p2.length
         ) AS p1
-        where ST_Intersects(p1.point, ST_SetSRID(ST_MakeBox2D(ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857), ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)), 3857)) 
+        where ST_Intersects(p1.point,
+          ST_SetSRID(ST_MakeBox2D(
+            ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 3857),
+            ST_Transform(ST_SetSRID(ST_MakePoint($1 + 1, $2 + 1), 4326), 3857)
+          ), 3857)
+        ) 
         group by point
         having count(*) > 1
       ) as total
     )%"
   ),
-  m_insertCount(
+  m_updateCount(
     m_dbConnection,
     R"%(
       INSERT INTO quad_intersection_counts (created_at, updated_at, lat, lng, intersection_count)
@@ -929,7 +914,7 @@ int GraphBuilder::updateIntersectionCount(
 {
   auto count = transaction.exec1(m_intersectionQuery, lng, lat);
 
-  auto id = transaction.exec1(m_insertCount, lat, lng, count["count"].as<int>());
+  auto id = transaction.exec1(m_updateCount, lat, lng, count["count"].as<int>());
 
   Json::Value status = Json::objectValue;
   status["status"] = StatusUpdateIntersectionCount;

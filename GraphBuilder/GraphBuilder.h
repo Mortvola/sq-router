@@ -34,6 +34,11 @@ public:
     int lat,
     int lng);
 
+  std::shared_ptr<DBConnection> dbConnection()
+  {
+    return m_dbConnection;
+  }
+
 private:
 
 	std::mutex m_generateQueueMutex;
@@ -107,12 +112,11 @@ private:
 
   PreparedStatement m_queryIntersections;
   PreparedStatement m_queryIntersectionPoints;
-  PreparedStatement m_countIntersectionPoints;
   PreparedStatement m_queryExistingEdges;
   PreparedStatement m_insertNode;
   PreparedStatement m_deleteEdges;
   PreparedStatement m_intersectionQuery;
-  PreparedStatement m_insertCount;
+  PreparedStatement m_updateCount;
 };
 
 } // namespace gb
