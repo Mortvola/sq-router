@@ -34,14 +34,21 @@ public:
 
     void printResults()
     {
-      auto seconds = std::chrono::duration<double>(m_duration).count();
-      auto rate = m_samples / seconds;
+      if (m_samples == 0)
+      {
+        std::cerr << m_name << ": rate: N/A, duration: 0, samples: 0" << std::endl;
+      }
+      else
+      {
+        auto seconds = std::chrono::duration<double>(m_duration).count();
+        auto rate = m_samples / seconds;
 
-      std::cerr << m_name
-        << " rate: " << rate 
-        << " per second, duration: " << seconds
-        << ", samples: " << m_samples
-        << std::endl;
+        std::cerr << m_name
+          << ": rate: " << rate 
+          << " per second, duration: " << seconds
+          << ", samples: " << m_samples
+          << std::endl;
+      }
 
       m_duration = std::chrono::nanoseconds(0);
       m_samples = 0;

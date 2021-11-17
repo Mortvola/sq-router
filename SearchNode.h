@@ -62,6 +62,9 @@ public:
 
   bool hasNonTraversedEdges();
 
+  void forEachEdge(
+    std::function<void(const std::shared_ptr<Edge> &)> callback);
+
   std::vector<std::future<std::shared_ptr<SearchNode>>> forEachEdge(
     ThreadPool &threadPool,
     std::function<std::shared_ptr<SearchNode>(const std::shared_ptr<Edge> &)> callback);

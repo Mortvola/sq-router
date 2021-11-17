@@ -103,6 +103,12 @@ std::shared_ptr<SearchEdge> SearchNode::getSearchEdgeNoLock(const std::shared_pt
   return *iter;
 }
 
+void SearchNode::forEachEdge(
+  std::function<void(const std::shared_ptr<Edge> &)> callback)
+{
+  m_node->forEachEdge(callback);
+}
+
 std::vector<std::future<std::shared_ptr<SearchNode>>> SearchNode::forEachEdge(
   ThreadPool &threadPool,
   std::function<std::shared_ptr<SearchNode>(const std::shared_ptr<Edge> &)> callback)

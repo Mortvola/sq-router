@@ -53,11 +53,28 @@ public:
     return nullptr;
   }
 
+  std::shared_ptr<SearchNode> queuePopFront()
+  {
+    std::unique_lock<std::mutex> lock(m_openSearchNodesMutex);
+
+    if (m_openSearchNodes.size() > 0) {
+      auto searchNode = *m_openSearchNodes.begin();
+      m_openSearchNodes.erase(m_openSearchNodes.begin());
+
+      return searchNode;
+    }
+
+    return nullptr;
+  }
+
+  void queueInsert(const std::shared_ptr<SearchNode> &searchNode) {
+    std::unique_lock<std::mutex> lock(m_openSearchNodesMutex);
+    m_openSearchNodes.insert(searchNode);
+  }
+
   void processNext(ThreadPool &threadPool);
 
-  virtual double getNodeSortCost(const std::shared_ptr<SearchNode> &node);
-
-  virtual double getPotentialPathCost(const std::shared_ptr<SearchNode> &node);
+  virtual double getNodeSortValue(const std::shared_ptr<SearchNode> &node);
 
   int getStartNodeId()
   {
@@ -77,7 +94,7 @@ private:
 
   void overrideEdge(SearchNode &searchNode, int edgeIndex);
 
-  void insertSearchNode(
+  void insertOpenNode(
     const std::shared_ptr<SearchNode> &fromNode,
     const std::shared_ptr<SearchNode> &node);
 
@@ -146,12 +163,10 @@ private:
 
   std::weak_ptr<Search> m_otherSearch;
 
-  Profiler m_profiler3{"3"};
-  Profiler m_profiler4{"4"};
-  Profiler m_profiler5{"5"};
-  Profiler m_profiler6{"6"};
+  Profiler m_profiler3{"Found End"};
+  Profiler m_profiler4{"Better Path"};
+  Profiler m_profiler5{"Traverse Edge"};
   Profiler m_profiler8{"8"};
-  Profiler m_profiler{"processEdge"};
   Profiler m_profiler2{"traverseEdge"};
   Profiler m_profileWait{"Wait"};
   Profiler m_profileProcessNext{"processNext"};

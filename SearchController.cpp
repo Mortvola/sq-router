@@ -94,8 +94,8 @@ std::vector<Anchor> SearchController::BiDiDijkstra(ThreadPool &threadPool)
       }
 
       if (getBestCost() >= 0
-       && forwardSearch->getNodeSortCost(forwardSearch->queueFront())
-       + backwardSearch->getNodeSortCost(backwardSearch->queueFront())
+       && forwardSearch->getNodeSortValue(forwardSearch->queueFront())
+       + backwardSearch->getNodeSortValue(backwardSearch->queueFront())
        >= getBestCost())
       {
         break;
@@ -170,8 +170,8 @@ std::vector<Anchor> SearchController::BiDiAStar(ThreadPool &threadPool)
       }
 
       bool finished = getBestCost() >= 0
-       && forwardSearch->getNodeSortCost(forwardSearch->queueFront())
-       + backwardSearch->getNodeSortCost(backwardSearch->queueFront())
+       && forwardSearch->getNodeSortValue(forwardSearch->queueFront())
+       + backwardSearch->getNodeSortValue(backwardSearch->queueFront())
        >= getBestCost();
 
       if (finished)
@@ -183,16 +183,16 @@ std::vector<Anchor> SearchController::BiDiAStar(ThreadPool &threadPool)
       auto &backwardNode = backwardSearch->queue().front().m_searchNode;
       
       auto c = std::min(
-        forwardSearch->getNodeSortCost(forwardNode),
-        backwardSearch->getNodeSortCost(backwardNode)
+        forwardSearch->getNodeSortValue(forwardNode),
+        backwardSearch->getNodeSortValue(backwardNode)
       );
 
       if (getBestCost() >= 0 && getBestCost() <= std::max(
         c,
         std::max(
           std::max(
-            forwardSearch->getPotentialPathCost(forwardNode),
-            backwardSearch->getPotentialPathCost(backwardNode)),
+            forwardSearch->getNodeSortValue(forwardNode),
+            backwardSearch->getNodeSortValue(backwardNode)),
           std::max(
             forwardNode.m_searchInfo[0].m_cummulativeCost,
             backwardNode.m_searchInfo[1].m_cummulativeCost))))
@@ -200,7 +200,7 @@ std::vector<Anchor> SearchController::BiDiAStar(ThreadPool &threadPool)
         break;
       }
 
-      if (c == forwardSearch->getNodeSortCost(forwardNode) && forwardSearch->queue().size() > 0)
+      if (c == forwardSearch->getNodeSortValue(forwardNode) && forwardSearch->queue().size() > 0)
       {
         forwardSearch->processNext(threadPool);
       }
@@ -213,7 +213,11 @@ std::vector<Anchor> SearchController::BiDiAStar(ThreadPool &threadPool)
 
     m_searchProfiler.stop();
 
-    return getRoute(forwardSearch, backwardSearch);
+    m_getRouteProfiler.start();
+    auto route = getRoute(forwardSearch, backwardSearch);
+    m_getRouteProfiler.stop();
+
+    return route;
   }
   catch (const std::exception &e)
   {

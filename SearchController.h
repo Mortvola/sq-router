@@ -93,5 +93,6 @@ private:
   bool m_returnLog {false};
 
   Profiler m_getNodeProfiler{"getNode"};
-  Profiler m_searchProfiler{"search"};
+  Profiler m_searchProfiler{"overall search"};
+  Profiler m_getRouteProfiler{"getRoute"};
 };

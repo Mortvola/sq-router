@@ -16,7 +16,7 @@ public:
 
   Json::Value getAsJson();
 
-  void addSpawnedSearcherEntry(
+  void addOpenNodeEntry(
     int search,
     int searcherId,
     SearchLogEntry::SearcherState searcherState,

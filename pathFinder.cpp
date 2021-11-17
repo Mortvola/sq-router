@@ -1238,19 +1238,33 @@ Napi::Value PathFinder::findRoute(const Napi::CallbackInfo &info) {
     searchAlgorithm = options.Get("searchAlgorithm").As<Napi::String>();
   }
 
+  m_findRouteStart.start();
+
   auto deferred = postTask(
     env,
     [this, points, returnLog, searchAlgorithm](Napi::Promise::Deferred deferred)
     {
       try
       {
-        auto result = routeFindRequest(points, returnLog, searchAlgorithm);
+        m_findRouteStart.stop();
+        m_findRouteStart.printResults();
 
+        m_findRouteProfiler.start();
+        auto result = routeFindRequest(points, returnLog, searchAlgorithm);
+        m_findRouteProfiler.stop();
+
+        m_findRouteProfiler.printResults();
+
+        m_findRouteCallback.start();
         m_callbackFunction.BlockingCall(
           [result, deferred](Napi::Env env, Napi::Function jsCallback)
           {
-            deferred.Resolve(convertToNapiValue(env, result));
+            auto results = convertToNapiValue(env, result);
+            deferred.Resolve(results);
           });
+        m_findRouteCallback.stop();
+
+        m_findRouteCallback.printResults();
       }
       catch (...)
       {

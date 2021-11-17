@@ -23,9 +23,7 @@ public:
   {
   }
 
-  double getNodeSortCost(const std::shared_ptr<SearchNode> &node) override;
-
-  double getPotentialPathCost(const std::shared_ptr<SearchNode> &node) override;
+  double getNodeSortValue(const std::shared_ptr<SearchNode> &node) override;
 
 private:
 };

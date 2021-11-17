@@ -81,7 +81,7 @@ void SearchLog::addEdge(
     m_searchEdges[search].push_back(edge);
 }
 
-void SearchLog::addSpawnedSearcherEntry(
+void SearchLog::addOpenNodeEntry(
   int search,
   int searcherId,
   SearchLogEntry::SearcherState searcherState,

@@ -2,6 +2,7 @@
 
 #include "Map.h"
 #include "GraphBuilder/GraphBuilder.h"
+#include "Profiler.h"
 #include <map>
 #include <memory>
 #include <condition_variable>
@@ -73,4 +74,8 @@ private:
   );
 
   Configuration m_configuration;
+
+  Profiler m_findRouteStart{"findRouteStart"};
+  Profiler m_findRouteProfiler{"findRoute"};
+  Profiler m_findRouteCallback{"findRouteCallback"};
 };
