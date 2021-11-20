@@ -18,7 +18,7 @@ Search::Search(
   bool reverseCosts,
   bool log)
 :
-  m_search(reverseCosts ? 1 : 0),
+  m_searchDirection(reverseCosts ? SearchDirection::Reverse : SearchDirection::Forward),
   m_graph(graph),
   m_controller(controller),
   m_log(log),
@@ -33,61 +33,47 @@ void Search::initializeStartNode()
   auto startNode = m_controller.getSearchNode(m_startNodeId);
   auto endNode = m_controller.getSearchNode(m_endNodeId);
 
-  startNode->m_searchInfo[m_search].m_cummulativeCost = 0;
+  startNode->m_searchInfo[m_searchDirection].m_cummulativeCost = 0;
 #if 0
   if (m_reverseCosts)
   {
-    startNode.m_searchInfo[m_search].m_costToEnd =
+    startNode.m_searchInfo[m_searchDirection].m_costToEnd =
         m_graph->costBetweenNodes(*endNode.m_node, *startNode.m_node);
   }
   else
   {
-    startNode.m_searchInfo[m_search].m_costToEnd =
+    startNode.m_searchInfo[m_searchDirection].m_costToEnd =
         m_graph->costBetweenNodes(*startNode.m_node, *endNode.m_node);
   }
 #endif
 
-  startNode->m_searchInfo[m_search].m_distanceToEnd =
-      m_graph->distanceBetweenNodes(*startNode->m_node, *endNode->m_node);
-  startNode->m_searchInfo[m_search].m_timeToEnd = startNode->m_searchInfo[m_search].m_distanceToEnd / 6000;
-
+  setToEndValues(startNode);
   queueInsert(startNode);
 
-  startNode->m_searchInfo[m_search].m_queued++;
-
-  if (m_log)
-  {
-    auto searchNode = queueFront();
-
-    m_controller.m_searchLog.addOpenNodeEntry(
-      m_search,
-      searchNode->getNodeId(),
-      SearchLogEntry::SearcherState::Active,
-      -1,
-      searchNode,
-      searchNode,
-      false, // shared node
-      0);
-  }
+  startNode->m_searchInfo[m_searchDirection].m_queued++;
 }
 
 double Search::getNodeSortValue(const std::shared_ptr<SearchNode> &node)
+{
+  return getNodeCumulativeCost(node);
+}
+
+double Search::getNodeCumulativeCost(const std::shared_ptr<SearchNode> &node)
 {
   if (node == nullptr) {
     return 0;
   }
 
-  return node->m_searchInfo[m_search].m_cummulativeCost;
+  return node->getCumulativeCost(m_searchDirection);
 }
 
 std::shared_ptr<SearchNode> Search::handleEdgeTraversal(
   const std::shared_ptr<SearchEdge> &searchEdge,
   const std::shared_ptr<SearchNode> &fromNode,
-  const std::shared_ptr<SearchNode> &nextNode,
-  bool preferredRoute
+  const std::shared_ptr<SearchNode> &nextNode
 )
 {
-  if (nextNode->getEntryEdge(m_search))
+  if (nextNode->getEntryEdge(m_searchDirection))
   {
     throw new std::runtime_error("has entry edge");
   }
@@ -95,44 +81,23 @@ std::shared_ptr<SearchNode> Search::handleEdgeTraversal(
   nextNode->m_fromNode = fromNode;
 
   searchEdge->m_fromNodeId = fromNode->getNodeId();
-  searchEdge->m_search = m_search;
+  searchEdge->m_searchDirection = m_searchDirection;
 
   checkSharedNode(nextNode);
 
   // Add the node to the queue if the cost to the end
   // is not known or the cost is less than the cost to the
   // end.
-  if (preferredRoute || m_controller.getBestCost() < 0 ||
+  if (m_controller.getBestCost() < 0 ||
       getNodeSortValue(nextNode) <= m_controller.getBestCost())
   {
-    if (nextNode->m_searchInfo[m_search].m_queued)
+    if (nextNode->m_searchInfo[m_searchDirection].m_queued)
     {
       std::cerr << "node already queued: "
-                << nextNode->m_searchInfo[m_search].m_queued << "\n";
+                << nextNode->m_searchInfo[m_searchDirection].m_queued << "\n";
     }
 
     return nextNode;
-  }
-
-  if (m_log)
-  {
-    double totalCost = 0;
-    auto otherSearch = m_otherSearch.lock();
-    if (otherSearch)
-    {
-      auto otherCost = otherSearch->getNodeCost(nextNode->getNodeId());
-      if (otherCost >= 0)
-      {
-        totalCost = otherCost + nextNode->m_searchInfo[m_search].m_cummulativeCost;
-      }
-    }
-
-    m_controller.m_searchLog.addTerminatedSearcherEntry(
-      m_search,
-      nextNode->getNodeId(),
-      fromNode,
-      nextNode,
-      totalCost);
   }
 
   return {};
@@ -145,12 +110,12 @@ std::shared_ptr<SearchNode> Search::handleBetterPath(
   double costDelta
 )
 {
-  auto entryEdge = nextNode->getEntryEdge(m_search);
+  auto entryEdge = nextNode->getEntryEdge(m_searchDirection);
 
   if (entryEdge)
   {
     entryEdge->m_fromNodeId = -1;
-    entryEdge->m_search = -1;
+    entryEdge->m_searchDirection = -1;
 
     // insertSearchNode(searchers, node, newSearcher);
   }
@@ -163,7 +128,7 @@ std::shared_ptr<SearchNode> Search::handleBetterPath(
 
   {
     searchEdge->m_fromNodeId = fromNode->getNodeId();
-    searchEdge->m_search = m_search;
+    searchEdge->m_searchDirection = m_searchDirection;
   }
 
   checkSharedNode(nextNode);
@@ -178,47 +143,26 @@ void Search::handleFoundEnd(
   const std::shared_ptr<SearchNode> &nextNode
 )
 {
-  auto entryEdge = nextNode->getEntryEdge(m_search);
+  auto entryEdge = nextNode->getEntryEdge(m_searchDirection);
 
   if (entryEdge)
   {
     entryEdge->m_fromNodeId = -1;
-    entryEdge->m_search = -1;
+    entryEdge->m_searchDirection = -1;
   }
 
   nextNode->m_fromNode = fromNode;
 
   {
     searchEdge->m_fromNodeId = fromNode->getNodeId();
-    searchEdge->m_search = m_search;
+    searchEdge->m_searchDirection = m_searchDirection;
   }
 
   m_controller.setBestCost(
-    nextNode->m_searchInfo[m_search].m_cummulativeCost,
+    nextNode->m_searchInfo[m_searchDirection].m_cummulativeCost,
     nextNode->getNodeId());
 
-  if (m_log)
-  {
-    double totalCost = nextNode->m_searchInfo[m_search].m_cummulativeCost;
-    auto otherSearch = m_otherSearch.lock();
-    if (otherSearch)
-    {
-      auto otherCost = otherSearch->getNodeCost(nextNode->getNodeId());
-      if (otherCost >= 0)
-      {
-        totalCost += otherCost;
-      }
-    }
-
-    m_controller.m_searchLog.addFoundEndEntry(
-      m_search,
-      nextNode->getNodeId(),
-      fromNode,
-      nextNode,
-      totalCost);
-  }
-
-  std::cerr << "Found end: cost: " << nextNode->m_searchInfo[m_search].m_cummulativeCost
+  std::cerr << "Found end: cost: " << nextNode->m_searchInfo[m_searchDirection].m_cummulativeCost
             << ", bestCost: " << m_controller.getBestCost() << "\n";
 
   checkSharedNode(nextNode);
@@ -226,16 +170,19 @@ void Search::handleFoundEnd(
 
 void Search::setToEndValues(const std::shared_ptr<SearchNode> &node)
 {
-  if (node->m_searchInfo[m_search].m_timeToEnd == -1)
+  if (node->m_searchInfo[m_searchDirection].m_timeToEnd == -1)
   {
-    node->m_searchInfo[m_search].m_distanceToEnd =
+    auto distanceToEnd =
         m_graph->distanceBetweenNodes(
-            *node->m_node, *m_controller.getSearchNode(m_endNodeId)->m_node);
-    node->m_searchInfo[m_search].m_timeToEnd = node->m_searchInfo[m_search].m_distanceToEnd / 6000;
+          *node->m_node,
+          *m_controller.getSearchNode(m_endNodeId)->m_node
+        );
+
+    node->m_searchInfo[m_searchDirection].m_timeToEnd = distanceToEnd / 6000;
   }
 }
 
-std::shared_ptr<SearchNode> Search::traverseEdge(
+std::shared_ptr<SearchNode> Search::getNeighbor(
   const std::shared_ptr<SearchEdge> &searchEdge,
   const std::shared_ptr<SearchNode> &fromNode)
 {
@@ -248,30 +195,29 @@ std::shared_ptr<SearchNode> Search::traverseEdge(
 
     if (nextNode)
     {
-      // auto preferredRoute = m_controller.m_preferredRouteGroupIds.end() != std::find(
-      //   m_controller.m_preferredRouteGroupIds.begin(),
-      //   m_controller.m_preferredRouteGroupIds.end(),
-      //   searchEdge->getLineId());
-
       m_profiler2.start();
 
       double newCummulativeCost{0};
       double edgeCost{0};
 
-      // if (!preferredRoute)
+      edgeCost = searchEdge->getCost(fromNode->getNodeId());
+      if (edgeCost <= 0)
       {
-        edgeCost = searchEdge->getCost(fromNode->getNodeId());
-        if (edgeCost <= 0)
-        {
-          throw std::runtime_error(
-            "edge cost is less than or equal to zero. Line ID: "
-            + std::to_string(searchEdge->getLineId())
-            + ", Cost: " + std::to_string(edgeCost)
-          );
-        }
+        throw std::runtime_error(
+          "edge cost is less than or equal to zero. Line ID: "
+          + std::to_string(searchEdge->getLineId())
+          + ", Cost: " + std::to_string(edgeCost)
+        );
       }
 
-      newCummulativeCost = fromNode->m_searchInfo[m_search].m_cummulativeCost + edgeCost;
+      if (searchEdge->isPreferred(m_controller)) {
+        nextNode->m_preferredNode = true;
+        newCummulativeCost = fromNode->m_searchInfo[m_searchDirection].m_cummulativeCost;
+      }
+      else {
+        nextNode->m_preferredNode = false;
+        newCummulativeCost = fromNode->m_searchInfo[m_searchDirection].m_cummulativeCost + edgeCost;
+      }
 
       auto lock = nextNode->getUniqueLock();
 
@@ -279,59 +225,51 @@ std::shared_ptr<SearchNode> Search::traverseEdge(
       // Also, the next node's cost must not yet have been
       // set or the new cost must be less than the next node's current
       // cost.
-      if (nextNode->m_searchInfo[m_search].m_cummulativeCost < 0
-        || newCummulativeCost < nextNode->m_searchInfo[m_search].m_cummulativeCost)
+      if (nextNode->m_searchInfo[m_searchDirection].m_cummulativeCost < 0
+        || newCummulativeCost < nextNode->m_searchInfo[m_searchDirection].m_cummulativeCost)
       {
-        nextNode->m_searchInfo[m_search].m_visitCount++;
+        nextNode->m_searchInfo[m_searchDirection].m_visitCount++;
 
         if (nextNode->getNodeId() == m_endNodeId)
         {
           // We have reached the target node.
-          nextNode->m_searchInfo[m_search].m_cummulativeCost = newCummulativeCost;
-          setToEndValues(nextNode);
+          nextNode->setCumulativeCost(m_searchDirection, newCummulativeCost);
+          nextNode->setTimeToEnd(m_searchDirection, m_graph, m_endNodeId);
           m_profiler3.start();
           handleFoundEnd(searchEdge, fromNode, nextNode);
           m_profiler3.stop();
         }
-        else if (newCummulativeCost < nextNode->m_searchInfo[m_search].m_cummulativeCost)
+        else if (newCummulativeCost < nextNode->getCumulativeCost(m_searchDirection))
         {
           // The new cost is better than the previous cost to reach the next node
-          auto costDelta = nextNode->m_searchInfo[m_search].m_cummulativeCost - newCummulativeCost;
-          nextNode->m_searchInfo[m_search].m_cummulativeCost = newCummulativeCost;
-          setToEndValues(nextNode);
+          auto costDelta = nextNode->m_searchInfo[m_searchDirection].m_cummulativeCost - newCummulativeCost;
+          nextNode->setCumulativeCost(m_searchDirection, newCummulativeCost);
+          nextNode->setTimeToEnd(m_searchDirection, m_graph, m_endNodeId);
           m_profiler4.start();
           newSearchNode = handleBetterPath(searchEdge, fromNode, nextNode, costDelta);
           m_profiler4.stop();
         }
         else
         {
-          nextNode->m_searchInfo[m_search].m_cummulativeCost = newCummulativeCost;
-          setToEndValues(nextNode);
+          nextNode->setCumulativeCost(m_searchDirection, newCummulativeCost);
+          nextNode->setTimeToEnd(m_searchDirection, m_graph, m_endNodeId);
           m_profiler5.start();
-          newSearchNode = handleEdgeTraversal(searchEdge, fromNode, nextNode, false); //preferredRoute);
+          newSearchNode = handleEdgeTraversal(searchEdge, fromNode, nextNode);
           m_profiler5.stop();
-        }
-      }
-      else
-      {
-        if (m_log)
-        {
-          m_controller.m_searchLog.addBlockedEntry(m_search, nextNode->getNodeId(), fromNode, nextNode);
         }
       }
 
       m_profiler2.stop();
     }
-    else
-    {
-        if (m_log)
-        {
-          m_controller.m_searchLog.addDeadEndEntry(m_search, fromNode->getNodeId());
-        }
-    }
   }
 
   return newSearchNode;
+}
+
+void Search::queueInsert(const std::shared_ptr<SearchNode> &searchNode) {
+  std::unique_lock<std::mutex> lock(m_openSearchNodesMutex);
+  m_openSearchNodes.insert(searchNode);
+  searchNode->m_searchInfo[m_searchDirection].m_queued++;
 }
 
 void Search::insertOpenNode(
@@ -341,29 +279,10 @@ void Search::insertOpenNode(
   node->m_sortCost = getNodeSortValue(node);
 
   queueInsert(node);
-  node->m_searchInfo[m_search].m_queued++;
 
   if (m_log)
   {
-    double totalCost = 0;
-    double otherCost {0};
-
-    auto otherSearch = m_otherSearch.lock();
-    if (otherSearch && node->m_searchInfo[m_search ^ 1].m_cummulativeCost >= 0)
-    {
-      totalCost = node->m_searchInfo[m_search ^ 1].m_cummulativeCost
-        + node->m_searchInfo[m_search].m_cummulativeCost;
-    }
-
-    m_controller.m_searchLog.addOpenNodeEntry(
-      m_search,
-      node->getNodeId(),
-      SearchLogEntry::SearcherState::Active,
-      -1,
-      fromNode,
-      node,
-      otherCost >= 0, // shared node
-      totalCost);
+    m_controller.m_searchLog.addOpenNode(node, m_searchDirection);
   }
 }
 
@@ -373,7 +292,7 @@ void Search::propogateCostDelta(
 {
   for (auto &edge: node->getSearchEdges())
   {
-    if (edge->m_search == m_search && edge->m_fromNodeId == node->getNodeId())
+    if (edge->m_searchDirection == m_searchDirection && edge->m_fromNodeId == node->getNodeId())
     {
       auto nextNodeId = edge->getOtherNodeId(node->getNodeId());
 
@@ -389,14 +308,14 @@ void Search::propogateCostDelta(
       {
         auto nextNode = m_controller.getSearchNode(nextNodeId);
 
-        if (nextNode->m_searchInfo[m_search].m_cummulativeCost != -1)
+        if (nextNode->m_searchInfo[m_searchDirection].m_cummulativeCost != -1)
         {
-          if (nextNode->m_searchInfo[m_search].m_cummulativeCost < costDelta)
+          if (nextNode->m_searchInfo[m_searchDirection].m_cummulativeCost < costDelta)
           {
             throw std::runtime_error("cost underflow");
           }
 
-          nextNode->m_searchInfo[m_search].m_cummulativeCost -= costDelta;
+          nextNode->m_searchInfo[m_searchDirection].m_cummulativeCost -= costDelta;
           checkSharedNode(nextNode);
           propogateCostDelta(nextNode, costDelta);
 
@@ -415,21 +334,21 @@ void Search::propogateCostDelta(
 
 double Search::getNodeCost(int nodeId)
 {
-  return m_controller.getNodeCost(nodeId, m_search);
+  return m_controller.getNodeCost(nodeId, m_searchDirection);
 }
 
 bool Search::isSharedNode(const std::shared_ptr<SearchNode> &node)
 {
   auto otherSearch = m_otherSearch.lock();
-  return otherSearch && node->m_searchInfo[m_search ^ 1].m_cummulativeCost >= 0;
+  return otherSearch && node->m_searchInfo[m_searchDirection ^ 1].m_cummulativeCost >= 0;
 }
 
 void Search::checkSharedNode(const std::shared_ptr<SearchNode> &node)
 {
   if (isSharedNode(node))
   {
-    auto cost = node->m_searchInfo[m_search].m_cummulativeCost
-      + node->m_searchInfo[m_search ^ 1].m_cummulativeCost;
+    auto cost = node->m_searchInfo[m_searchDirection].m_cummulativeCost
+      + node->m_searchInfo[m_searchDirection ^ 1].m_cummulativeCost;
 
     m_controller.setBestCost(cost, node->getNodeId());
   }
@@ -437,25 +356,19 @@ void Search::checkSharedNode(const std::shared_ptr<SearchNode> &node)
 
 void Search::processNext(ThreadPool &threadPool)
 {
+  if (m_log)
+  {
+    m_controller.m_searchLog.startNewEntry();
+  }
+
   std::shared_ptr<SearchNode> searchNode;
 
   m_profileProcessNext.start();
 
   searchNode = queuePopFront();
 
-  searchNode->m_searchInfo[m_search].m_queued--;
+  searchNode->m_searchInfo[m_searchDirection].m_queued--;
 
-#if 0
-  for (auto searchEdge : searchNode->getSearchEdges())
-  {
-    auto nextNode = traverseEdge(searchEdge, searchNode);
-
-    if (nextNode)
-    {
-      insertSearchNode(nextNode);
-    }
-  }
-#else
   m_profiler8.start();
   searchNode->forEachEdge(
     [this, searchNode](const std::shared_ptr<Edge> &edge)
@@ -464,15 +377,20 @@ void Search::processNext(ThreadPool &threadPool)
 
       if (searchEdge != nullptr)
       {
-        auto nextNode = traverseEdge(searchEdge, searchNode);
+        auto neighbor = getNeighbor(searchEdge, searchNode);
 
-        if (nextNode) {
-          insertOpenNode(searchNode, nextNode);
+        if (neighbor) {
+          insertOpenNode(searchNode, neighbor);
         }
       }
     }
   );
   m_profiler8.stop();
-#endif
+
+  if (m_log)
+  {
+    m_controller.m_searchLog.removeOpenNode(searchNode->getNodeId());
+  }
+
   m_profileProcessNext.stop();
 }

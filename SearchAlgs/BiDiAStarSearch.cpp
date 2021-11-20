@@ -6,6 +6,6 @@ double BiDiAStarSearch::getNodeSortValue(const std::shared_ptr<SearchNode> &node
     return 0;
   }
 
-  return node->m_searchInfo[m_search].m_cummulativeCost
-    + node->m_searchInfo[m_search].m_timeToEnd;
+  return node->m_searchInfo[m_searchDirection].m_cummulativeCost
+    + node->m_searchInfo[m_searchDirection].m_timeToEnd;
 }

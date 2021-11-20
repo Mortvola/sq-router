@@ -1,5 +1,6 @@
 #include "Graph.h"
 #include "Cost.h"
+#include "./Database/DBConnection.h"
 #include <cmath>
 #include <vector>
 #include <algorithm>
@@ -10,7 +11,6 @@
 #include <shared_mutex>
 #include <optional>
 #include <jsoncpp/json/json.h>
-#include "./Database/DBConnection.h"
 
 constexpr int Graph::NodeIdNone;
 
@@ -178,11 +178,13 @@ void Graph::loadNodeNoLock(int nodeId)
                   edge->m_pointIndex = entry["point_index"].as<int>();
                   edge->m_lineId = lineId;
 
+                  edge->m_edgeEnd[endType].m_edgeId = entry["edge_id"].as<int>();
                   edge->m_edgeEnd[endType].m_nodeId = nodeId;
                   edge->m_edgeEnd[endType].m_node = newNode;
                   edge->m_edgeEnd[endType].m_fraction = entry["fraction"].as<double>();
                   edge->m_edgeEnd[endType].m_cost = entry[costColumns[endType]].as<double>();
 
+                  edge->m_edgeEnd[endType ^ 1].m_edgeId = entry[edgeIdColumns[endType]].as<int>();
                   edge->m_edgeEnd[endType ^ 1].m_nodeId = entry[nodeIdColumns[endType]].as<int>();
                   edge->m_edgeEnd[endType ^ 1].m_node = nullptr;
                   edge->m_edgeEnd[endType ^ 1].m_fraction = entry[fractionColumns[endType]].as<double>();

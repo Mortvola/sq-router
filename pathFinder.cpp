@@ -149,7 +149,7 @@ Napi::Object PathFinder::Init(Napi::Env env, Napi::Object exports) {
           InstanceMethod("updateRouteElevations", &PathFinder::updateRouteElevations),
           InstanceMethod("updateNavNodeElevations", &PathFinder::updateNavNodeElevations),
           InstanceMethod("updateNavEdgeCosts", &PathFinder::updateNavEdgeCosts),
-          InstanceMethod("getSearchLog", &PathFinder::getSearchLog),
+          InstanceMethod("getSearchLogEntry", &PathFinder::getSearchLogEntry),
           InstanceMethod("getNodeCounts", &PathFinder::getNodeCounts),
           InstanceMethod("updateIntersectionCounts", &PathFinder::updateIntersectionCounts),
           InstanceMethod("addQuadrangle", &PathFinder::addQuadrangle),
@@ -346,17 +346,25 @@ Napi::Value PathFinder::getHikeDistance(const Napi::CallbackInfo &info) {
   return Napi::Number::New(env, distance);
 }
 
-Napi::Value PathFinder::getSearchLog(const Napi::CallbackInfo &info) {
+std::vector<SearchLogEntry> searchLogEntries;
+
+Napi::Value PathFinder::getSearchLogEntry(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
 
-  auto array = Napi::Array::New(env, 0); // searchLog.size());
+  if (info.Length() != 1 || !info[0].IsNumber()) {
+    Napi::TypeError::New(env, "Number expected").ThrowAsJavaScriptException();
+  }
+
+  int logIndex = info[0].As<Napi::Number>();
 
   // for (size_t i = 0; i < searchLog.size(); i++) {
   //   Napi::HandleScope scope(env);
   //   array[i] = convertToNapiValue(env, searchLog[i]);
   // }
 
-  return array;
+  Json::Value logEntry = searchLogEntries[logIndex];
+
+  return convertToNapiValue(env, logEntry);
 }
 
 std::tuple<int, int, int,  int> getLatLngBounds(
@@ -1169,6 +1177,7 @@ ThreadPool threadPool(4);
 
 Json::Value routeFindRequest(
   const std::vector<Point> &points,
+  int preferredTrailId,
   bool returnLog,
   const std::string &searchAlgorithm)
 {
@@ -1179,13 +1188,11 @@ Json::Value routeFindRequest(
 
   std::vector<std::vector<Anchor>> anchors;
 
-  Json::Value log;
-
   // Start each of the search pairs.
   for (size_t i = 0; i < points.size() - 1; i++)
   {
     // Generate nodeIds for the points.
-    SearchController controller(graph, searchAlgorithm, points[i], points[i + 1], returnLog);
+    SearchController controller(graph, searchAlgorithm, points[i], points[i + 1], preferredTrailId, returnLog);
 
     auto searchPairAnchors = controller.search(threadPool);
 
@@ -1193,7 +1200,7 @@ Json::Value routeFindRequest(
 
     if (returnLog)
     {
-      log = controller.getSearchLog();
+      searchLogEntries = controller.getSearchLog().entries();
     } 
   }
 
@@ -1202,7 +1209,7 @@ Json::Value routeFindRequest(
   Json::Value result;
 
   result["anchors"] = AnchorsToJson(anchors);
-  result["log"] = log;
+  // result["log"] = log;
 
   return result;
 }
@@ -1226,6 +1233,13 @@ Napi::Value PathFinder::findRoute(const Napi::CallbackInfo &info) {
   }
 
   auto options = info[1].As<Napi::Object>();
+
+  int preferredTrailId = -1;
+  if (options.Has("preferredTrailId"))
+  {
+    preferredTrailId = options.Get("preferredTrailId").As<Napi::Number>();
+  }
+
   bool returnLog = false;
   if (options.Has("returnLog"))
   {
@@ -1242,7 +1256,7 @@ Napi::Value PathFinder::findRoute(const Napi::CallbackInfo &info) {
 
   auto deferred = postTask(
     env,
-    [this, points, returnLog, searchAlgorithm](Napi::Promise::Deferred deferred)
+    [this, points, preferredTrailId, returnLog, searchAlgorithm](Napi::Promise::Deferred deferred)
     {
       try
       {
@@ -1250,7 +1264,7 @@ Napi::Value PathFinder::findRoute(const Napi::CallbackInfo &info) {
         m_findRouteStart.printResults();
 
         m_findRouteProfiler.start();
-        auto result = routeFindRequest(points, returnLog, searchAlgorithm);
+        auto result = routeFindRequest(points, preferredTrailId, returnLog, searchAlgorithm);
         m_findRouteProfiler.stop();
 
         m_findRouteProfiler.printResults();

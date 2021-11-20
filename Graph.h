@@ -10,6 +10,7 @@
 #include "Elevation.h"
 #include "Node.h"
 #include "Edge.h"
+#include "NavEdge.h"
 #include "Map.h"
 #include "./Database/DBConnection.h"
 #include "Profiler.h"
@@ -20,19 +21,6 @@
 #include <iostream>
 #include <mutex>
 #include <shared_mutex>
-
-class NavEdge
-{
-public:
-  int m_edgeId;
-  int m_nodeId;
-  int m_otherEdgeId[2];
-
-  std::shared_ptr<Edge> m_edge[2];
-
-private:
-
-};
 
 class Graph
 {

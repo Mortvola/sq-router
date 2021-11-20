@@ -11,6 +11,7 @@
 
 class SplitEdge;
 class Search;
+class DBConnection;
 
 class SearchController {
 public:
@@ -20,6 +21,7 @@ public:
     const std::string &algorithm,
     const Point &point1,
     const Point &point2,
+    int preferredTrailId,
     bool returnLog);
 
   std::vector<std::vector<Anchor>> search(ThreadPool &threadPool);
@@ -34,18 +36,20 @@ public:
 
   double getNodeCost(int nodeId, int search);
 
-  std::shared_ptr<Graph> m_graph;
-
-  std::vector<int> m_preferredRouteGroupIds;
-
-  Json::Value getSearchLog()
+  SearchLog &getSearchLog()
   {
-    return m_searchLog.getAsJson();
+    return m_searchLog;
   }
 
-  SearchLog m_searchLog;
-
   int createNode(int index);
+
+  bool isEdgePreferred(int startEdgeId, int endEdgeId);
+
+  std::shared_ptr<DBConnection> m_dbConnection;
+
+  std::shared_ptr<Graph> m_graph;
+
+  SearchLog m_searchLog;
 
 private:
   int insertNode(TrailInfo &terminus);
@@ -54,9 +58,11 @@ private:
   
   std::vector<std::shared_ptr<Node>> &nodes() { return m_nodes; }
 
+  std::vector<std::pair<int, int>> m_preferredEdges;
+
   int m_bestCostNodeId {-1};
 
-  void loadRouteGroup(const std::string &name);
+  void loadRouteGroup(int preferredTrailId);
 
   std::vector<Anchor> getRoute(
     const std::shared_ptr<Search> &forwardSearch,

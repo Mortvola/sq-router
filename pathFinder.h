@@ -48,7 +48,7 @@ private:
   void updateRouteElevations(const Napi::CallbackInfo &info);
   void updateNavNodeElevations(const Napi::CallbackInfo &info);
   void updateNavEdgeCosts(const Napi::CallbackInfo &info);
-  Napi::Value getSearchLog(const Napi::CallbackInfo &infO);
+  Napi::Value getSearchLogEntry(const Napi::CallbackInfo &infO);
   Napi::Value getNodeCounts(const Napi::CallbackInfo &info);
   void updateIntersectionCounts(const Napi::CallbackInfo &info);
   Napi::Value addQuadrangle(const Napi::CallbackInfo &info);

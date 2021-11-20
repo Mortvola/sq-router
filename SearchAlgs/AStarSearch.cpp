@@ -6,6 +6,6 @@ double AStarSearch::getNodeSortValue(const std::shared_ptr<SearchNode> &node)
     return 0;
   }
 
-  return node->m_searchInfo[m_search].m_cummulativeCost
-    + node->m_searchInfo[m_search].m_timeToEnd;
+  return node->getCumulativeCost(m_searchDirection)
+    + node->getTimeToEnd(m_searchDirection);
 }

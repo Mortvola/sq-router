@@ -67,14 +67,12 @@ public:
     return nullptr;
   }
 
-  void queueInsert(const std::shared_ptr<SearchNode> &searchNode) {
-    std::unique_lock<std::mutex> lock(m_openSearchNodesMutex);
-    m_openSearchNodes.insert(searchNode);
-  }
+  void queueInsert(const std::shared_ptr<SearchNode> &searchNode);
 
   void processNext(ThreadPool &threadPool);
 
   virtual double getNodeSortValue(const std::shared_ptr<SearchNode> &node);
+  virtual double getNodeCumulativeCost(const std::shared_ptr<SearchNode> &node);
 
   int getStartNodeId()
   {
@@ -88,7 +86,13 @@ public:
 
 protected:
 
-  int m_search{-1};
+  enum SearchDirection
+  {
+    Forward = 0,
+    Reverse = 1,
+  };
+
+  SearchDirection m_searchDirection;
 
 private:
 
@@ -98,15 +102,14 @@ private:
     const std::shared_ptr<SearchNode> &fromNode,
     const std::shared_ptr<SearchNode> &node);
 
-  std::shared_ptr<SearchNode> traverseEdge(
+  std::shared_ptr<SearchNode> getNeighbor(
     const std::shared_ptr<SearchEdge> &searchEdge,
     const std::shared_ptr<SearchNode> &fromNode);
 
   std::shared_ptr<SearchNode> handleEdgeTraversal(
     const std::shared_ptr<SearchEdge> &searchEdge,
     const std::shared_ptr<SearchNode> &fromNode,
-    const std::shared_ptr<SearchNode> &nextNode,
-    bool preferredRoute
+    const std::shared_ptr<SearchNode> &nextNode
   );
 
   std::shared_ptr<SearchNode> handleBetterPath(
@@ -142,6 +145,18 @@ private:
       const std::shared_ptr<SearchNode> &a,
       const std::shared_ptr<SearchNode> &b) const
     {
+      if (a->m_preferredNode) {
+        if (b->m_preferredNode) {
+          return a->m_sortCost < b->m_sortCost;
+        }
+
+        return true;
+      }
+
+      if (b->m_preferredNode) {
+        return false;
+      }
+
       if (a->m_sortCost == b->m_sortCost)
       {
         return a->getNodeId() < b->getNodeId();
@@ -167,7 +182,7 @@ private:
   Profiler m_profiler4{"Better Path"};
   Profiler m_profiler5{"Traverse Edge"};
   Profiler m_profiler8{"8"};
-  Profiler m_profiler2{"traverseEdge"};
+  Profiler m_profiler2{"getNeighbor"};
   Profiler m_profileWait{"Wait"};
   Profiler m_profileProcessNext{"processNext"};
 };

@@ -4,6 +4,7 @@
 #include "AStarSearch.h"
 #include "BiDiAStarSearch.h"
 #include "StatusUpdate.h"
+#include "./Database/DBConnection.h"
 #include <thread>
 
 SearchController::SearchController(
@@ -11,15 +12,19 @@ SearchController::SearchController(
   const std::string &algorithm,
   const Point &point1,
   const Point &point2,
+  int preferredTrailId,
   bool returnLog)
 :
+  m_dbConnection(std::make_shared<DBConnection>()),
   m_graph(graph),
   m_searchLog(*this),
   m_algorithm(algorithm),
   m_points{point1, point2},
   m_returnLog(returnLog)
 {
-  loadRouteGroup("test");
+  if (preferredTrailId != -1) {
+    loadRouteGroup(preferredTrailId);
+  }
 }
 
 std::vector<std::vector<Anchor>> SearchController::search(ThreadPool &threadPool)
@@ -523,25 +528,25 @@ void SearchController::overrideEdges()
   }
 }
 
-void SearchController::loadRouteGroup(const std::string &name)
+void SearchController::loadRouteGroup(int preferredTrailId)
 {
-#if 0
   PreparedStatement queryGroup(
+    m_dbConnection,
     R"%(
-      select line_id
-      from route_groups as rg
-      join route_group_routes as rgr on rgr.route_group_id = rg.id
-      where name = $1;
+      select start_edge_id, end_edge_id
+      from route_group_routes
+      where route_group_id = $1;
     )%"
   );
 
-  auto result = queryGroup.exec(name);
+  auto result = queryGroup.exec(preferredTrailId);
 
   for (const auto &row: result)
   {
-    m_preferredRouteGroupIds.push_back(row["line_id"].as<int>());
+    m_preferredEdges.push_back(std::make_pair(row["start_edge_id"].as<int>(), row["end_edge_id"].as<int>()));
   }
-#endif
+
+  std::cout << "loaded " << m_preferredEdges.size() << " preferred edges" << std::endl;
 }
 
 int SearchController::createNode(int index)
@@ -803,4 +808,16 @@ std::vector<Anchor> SearchController::getRoute(
   }
 
   return {};
+}
+
+
+bool SearchController::isEdgePreferred(int startEdgeId, int endEdgeId)
+{
+  auto iter = std::find_if(m_preferredEdges.begin(), m_preferredEdges.end(),
+    [startEdgeId, endEdgeId](const std::pair<int, int> &edge) {
+      return (edge.first == startEdgeId && edge.second == endEdgeId)
+        || (edge.first == endEdgeId && edge.second == startEdgeId);
+    });
+
+  return  iter != m_preferredEdges.end();
 }
