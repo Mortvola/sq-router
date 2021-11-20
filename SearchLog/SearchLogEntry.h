@@ -1,5 +1,6 @@
 #pragma once
 
+#include "SearchLogNode.h"
 #include "Point.h"
 #include <vector>
 #include <memory>
@@ -9,64 +10,37 @@ class SearchNode;
 
 class SearchLogEntry {
 public:
-  enum class SearcherState
+  void addOpenNode(const std::shared_ptr<SearchNode> &node, int searchDirection);
+
+  void removeOpenNode(int nodeId)
   {
-    Unknown = -1,
-    Active,
-    Inactive,
-  };
+    m_closedNodes.push_back(nodeId);
+  }
 
-  SearchLogEntry(
-    const std::string &type,
-    int searcherId,
-    SearcherState searcherState,
-    int search,
-    int fromSearcherId,
-    const std::shared_ptr<SearchNode> &node,
-    bool sharedNode,
-    const SearchController &controller,
-    double totalCost);
+  std::vector<SearchLogNode> m_openNodes;
+  std::vector<int> m_closedNodes;
 
-  SearchLogEntry(
-    const std::string &type,
-    int searcherId,
-    SearcherState searcherState,
-    int search,
-    int fromSearcherId,
-    const SearchController &controller,
-    double totalCost);
-
-  operator Json::Value() const;
-
-  int m_entryID {0};
-  std::string m_type;
-  int m_searcherId{};
-  SearcherState m_searcherState {SearcherState::Unknown};
-  int m_search{};
-  int m_fromSearcherId{};
-  int m_nodeId{};
-  bool m_sharedNode{false};
-  Point m_point;
-  double m_cost{};
-  double m_costToEnd{};
-  double m_bestCost{};
-  int m_edgeCount{};
-  double m_totalCost;
-
-private:
-
-  std::string searchStateString() const
+  operator Json::Value() const
   {
-    switch (m_searcherState)
+    Json::Value openNodes = Json::arrayValue;
+
+    for (const auto &node: m_openNodes)
     {
-      case SearcherState::Unknown:
-        return "Unknown";
-      case SearcherState::Active:
-        return "Active";
-      case SearcherState::Inactive:
-        return "Inactive";
+      openNodes.append(node);
     }
 
-    return "Unknown";
+    Json::Value closedNodes = Json::arrayValue;
+
+    for (const auto &nodeId: m_closedNodes)
+    {
+      closedNodes.append(nodeId);
+    }
+
+    Json::Value value;
+
+    value["openNodes"] = openNodes;
+    value["closedNodes"] = closedNodes;
+
+    return value;
   }
 };

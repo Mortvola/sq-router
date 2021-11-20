@@ -1,5 +1,6 @@
 #pragma once
 
+#include "SearchLogNode.h"
 #include <SearchLogEntry.h>
 #include <vector>
 #include <mutex>
@@ -14,52 +15,32 @@ public:
   SearchLog(SearchController &controller);
   ~SearchLog();
 
-  Json::Value getAsJson();
+  operator Json::Value () const;
 
-  void addSpawnedSearcherEntry(
-    int search,
-    int searcherId,
-    SearchLogEntry::SearcherState searcherState,
-    int fromSearcherId,
-    const std::shared_ptr<SearchNode> &fromNode,
-    const std::shared_ptr<SearchNode> &toNode,
-    bool sharedNode,
-    double totalCost);
+  void startNewEntry()
+  {
+    m_entries.push_back({});
+  }
 
-  void addTerminatedSearcherEntry(
-    int search,
-    int fromSearcherId,
-    const std::shared_ptr<SearchNode> &fromNode,
-    const std::shared_ptr<SearchNode> &toNode,
-    double totalCost);
+  void addOpenNode(const std::shared_ptr<SearchNode> &node, int searchDirection)
+  {
+    m_entries[m_entries.size() - 1].addOpenNode(node, searchDirection);
+  }
 
-  void addFoundEndEntry(
-    int search,
-    int fromSearcherId,
-    const std::shared_ptr<SearchNode> &fromNode,
-    const std::shared_ptr<SearchNode> &toNode,
-    double totalCost);
+  void removeOpenNode(int nodeId)
+  {
+    m_entries[m_entries.size() - 1].removeOpenNode(nodeId);
+  }
 
-  void addBlockedEntry(
-    int search,
-    int fromSearcherId,
-    const std::shared_ptr<SearchNode> &fromNode,
-    const std::shared_ptr<SearchNode> &toNode);
-
-  void addDeadEndEntry(
-    int search,
-    int fromSearcherId);
+  std::vector<SearchLogEntry> entries()
+  {
+    return m_entries;
+  }
 
 private:
-
-  void addEdge(
-    int search,
-    const std::shared_ptr<SearchNode> &fromNode,
-    const std::shared_ptr<SearchNode> &toNode);
 
   SearchController &m_controller;
 
   std::mutex m_entriesMutex;
-  std::vector<std::unique_ptr<SearchLogEntry>> m_entries;
-  std::vector<std::vector<std::vector<double>>> m_searchEdges[2];
+  std::vector<SearchLogEntry> m_entries;
 };

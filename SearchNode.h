@@ -17,6 +17,7 @@
 #include <future>
 
 class SearchController;
+class Graph;
 
 class SearchNode: public std::enable_shared_from_this<SearchNode>
 {
@@ -61,6 +62,9 @@ public:
   }
 
   bool hasNonTraversedEdges();
+
+  void forEachEdge(
+    std::function<void(const std::shared_ptr<Edge> &)> callback);
 
   std::vector<std::future<std::shared_ptr<SearchNode>>> forEachEdge(
     ThreadPool &threadPool,
@@ -111,13 +115,34 @@ public:
     return m_node->getEdge(otherNodeId, lineId);
   }
 
+  LatLng getLatLng()
+  {
+    return { m_node->m_point.m_lat, m_node->m_point.m_lng };
+  }
+
+  double getCumulativeCost(int searchDirection)
+  {
+    return m_searchInfo[searchDirection].m_cummulativeCost;
+  }
+
+  void setCumulativeCost(int searchDirection, double cumulativeCost)
+  {
+    m_searchInfo[searchDirection].m_cummulativeCost = cumulativeCost;
+  }
+
+  double getTimeToEnd(int searchDirection)
+  {
+    return m_searchInfo[searchDirection].m_timeToEnd;
+  }
+
+  void setTimeToEnd(int searchDirection, const std::shared_ptr<Graph> &graph, int endNodeId);
+
   SearchController &m_controller;
 
   struct SearchInfo
   {
     double m_cummulativeCost{-1};
     // double m_costToEnd{-1};
-    double m_distanceToEnd{-1};
     double m_timeToEnd{-1};
     int m_queued{0};
     int m_visitCount{0};
@@ -132,6 +157,8 @@ public:
   std::shared_ptr<SearchNode> m_fromNode;
 
   double m_sortCost{0};
+
+  bool m_preferredNode{false};
 
 private:
 

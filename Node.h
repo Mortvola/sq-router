@@ -48,6 +48,17 @@ public:
 		return m_edges.size();
 	}
 
+  void forEachEdge(
+    std::function<void(const std::shared_ptr<Edge> &)> callback)
+  {
+    std::lock_guard<std::mutex> lock(m_edgesAccess);
+
+    for (auto &edge: m_edges)
+    {
+      callback(edge);
+    }
+  }
+
   template<class T>
   std::vector<std::future<T>> forEachEdge(
     ThreadPool &threadPool,

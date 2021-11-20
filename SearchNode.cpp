@@ -1,5 +1,6 @@
 #include "SearchNode.h"
 #include "SearchController.h"
+#include "Graph.h"
 
 std::shared_ptr<Edge> SearchNode::getEdgeOverride(const std::shared_ptr<Edge> &edge)
 {
@@ -103,6 +104,12 @@ std::shared_ptr<SearchEdge> SearchNode::getSearchEdgeNoLock(const std::shared_pt
   return *iter;
 }
 
+void SearchNode::forEachEdge(
+  std::function<void(const std::shared_ptr<Edge> &)> callback)
+{
+  m_node->forEachEdge(callback);
+}
+
 std::vector<std::future<std::shared_ptr<SearchNode>>> SearchNode::forEachEdge(
   ThreadPool &threadPool,
   std::function<std::shared_ptr<SearchNode>(const std::shared_ptr<Edge> &)> callback)
@@ -119,14 +126,14 @@ std::vector<std::shared_ptr<SearchEdge>> SearchNode::getSearchEdges()
   return m_searchEdges;
 }
 
-std::shared_ptr<SearchEdge> SearchNode::getEntryEdge(int search)
+std::shared_ptr<SearchEdge> SearchNode::getEntryEdge(int searchDirection)
 {
   std::lock_guard<std::mutex> lock(m_searchEdgesAccess);
 
   auto iter = std::find_if(m_searchEdges.begin(), m_searchEdges.end(),
-    [this, search](const std::shared_ptr<SearchEdge> &searchEdge)
+    [this, searchDirection](const std::shared_ptr<SearchEdge> &searchEdge)
     {
-      return searchEdge->m_search == search
+      return searchEdge->m_searchDirection == searchDirection
         && searchEdge->m_fromNodeId != -1
         && searchEdge->m_fromNodeId != this->getNodeId();
     });
@@ -154,3 +161,16 @@ bool SearchNode::hasNonTraversedEdges()
   return false;
 }
 
+void SearchNode::setTimeToEnd(int searchDirection, const std::shared_ptr<Graph> &graph, int endNodeId)
+{
+  if (m_searchInfo[searchDirection].m_timeToEnd == -1)
+  {
+    auto distanceToEnd =
+        graph->distanceBetweenNodes(
+          *m_node,
+          *m_controller.getSearchNode(endNodeId)->m_node
+        );
+
+    m_searchInfo[searchDirection].m_timeToEnd = distanceToEnd / 6000;
+  }
+}

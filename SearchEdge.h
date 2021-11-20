@@ -8,6 +8,7 @@
 #pragma once
 
 #include "Edge.h"
+#include "SearchController.h"
 #include <memory>
 
 class SearchNode;
@@ -41,7 +42,7 @@ public:
   }
 
   double getCost(int startNodeId) {
-    return m_edge->getCost(startNodeId, m_search);
+    return m_edge->getCost(startNodeId, m_searchDirection);
   }
 
   int getOtherNodeId(int nodeId)
@@ -81,11 +82,33 @@ public:
     return os;
   }
 
-  int m_search{-1};
+  bool isPreferred(SearchController &controller)
+  {
+    if (m_preferred == PreferredEdge::Unknown) {
+      m_preferred = controller.isEdgePreferred(
+      m_edge->m_edgeEnd[0].m_edgeId,
+      m_edge->m_edgeEnd[1].m_edgeId)
+      ? PreferredEdge::True
+      : PreferredEdge::False;
+    }
+
+    return m_preferred;
+  }
+
+  int m_searchDirection{-1};
   int m_fromNodeId{-1};
   std::shared_ptr<Edge> m_edge;
 
   std::shared_ptr<SearchNode> m_edgeNode[2];
 
 private:
+
+  enum PreferredEdge 
+  {
+    Unknown = -1,
+    False = 0,
+    True = 1
+  };
+
+  PreferredEdge m_preferred{PreferredEdge::Unknown};
 };
