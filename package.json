@@ -1,6 +1,6 @@
 {
   "name": "@mortvola/sq-router",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "SaunterQuest route finding package",
   "main": "./build/Release/sqrouter",
   "types": "./sq-router.d.ts",
