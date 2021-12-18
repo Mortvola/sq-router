@@ -196,29 +196,30 @@ double tile2lat(int y, int z) {
 
 Terrain Elevation::getElevationTile(int x, int y, int z) {
   try {
-    LatLng nw(tile2lat(y, z), tile2lng(x, z));
-    LatLng se(tile2lat(y + 1, z), tile2lng(x + 1, z));
+    auto zoomFactor = std::pow(2, z);
+
+    auto tmpX = x / zoomFactor - 180.0;
+    auto tmpY = y / zoomFactor - 180.0;
+
+    auto lat = std::floor(tmpY);
+    auto lng = std::floor(tmpX);
+
+    auto tileX = (tmpX - lng) * zoomFactor;
+    auto tileY = (tmpY - lat) * zoomFactor;
+    auto dimension = 3600 / zoomFactor;
+
+    LatLng nw(lat, lng);
 
     auto &file = loadFile(nw);
 
     std::vector<std::vector<uint16_t>> points;
     std::vector<std::vector<double>> centers;
 
-    int northRow{}, westCol{};
-    int southRow{}, eastCol{};
+    int southRow = 3600 - dimension * tileY;
+    int westCol = dimension * tileX;
 
-    std::tie(northRow, westCol) = file.getFilePosition(nw);
-    std::tie(southRow, eastCol) = file.getFilePosition(se);
-
-    // Expand the area by one from ne corner
-    // getFIlePosition will provide the row and col
-    // that is south and to the west of the latlng.
-    // So, we need to expand to the north and to the east.
-    northRow -= 1;
-    eastCol += 1;
-
-    int dimensionX = eastCol - westCol;
-    int dimensionY = southRow - northRow;
+    int dimensionX = dimension;
+    int dimensionY = dimension;
 
     points.resize(dimensionY + 1);
 
@@ -241,22 +242,12 @@ Terrain Elevation::getElevationTile(int x, int y, int z) {
 
     Terrain terrain;
 
-    terrain.sw = file.pointToLatLng(southRow, westCol);
-    terrain.ne = file.pointToLatLng(northRow, eastCol);
-
-    auto tileHeight = terrain.ne.m_lat - terrain.sw.m_lat;
-    auto tileWidth = se.m_lng - nw.m_lng;
-
-    terrain.textureNE.s = (terrain.ne.m_lng - nw.m_lng) / tileWidth;
-    terrain.textureSW.s = (terrain.sw.m_lng - nw.m_lng) / tileWidth;
-    terrain.textureNE.t = (terrain.sw.m_lat - se.m_lat) / tileHeight;
-    terrain.textureSW.t = (terrain.ne.m_lat - se.m_lat) / tileHeight;
-
     terrain.points = points;
     terrain.centers = centers;
 
     return terrain;
-  } catch (const std::exception &e) {
+  }
+  catch (const std::exception &e) {
     std::cerr << e.what() << '\n';
   }
 
