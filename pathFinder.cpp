@@ -282,9 +282,9 @@ Napi::Value PathFinder::elevationTile(const Napi::CallbackInfo &info) {
 
   int x = request.Get("x").As<Napi::Number>();
   int y = request.Get("y").As<Napi::Number>();
-  int z = request.Get("z").As<Napi::Number>();
+  int dimension = request.Get("dimension").As<Napi::Number>();
 
-  auto terrain = Elevation::getInstance()->getElevationTile(x, y, z);
+  auto terrain = Elevation::getInstance()->getElevationTile(x, y, dimension);
 
   auto object = Napi::Object::New(env);
   auto array = Napi::Array::New(env, terrain.points.size());
@@ -1235,7 +1235,7 @@ Napi::Value PathFinder::findRoute(const Napi::CallbackInfo &info) {
   auto options = info[1].As<Napi::Object>();
 
   int preferredTrailId = -1;
-  if (options.Has("preferredTrailId"))
+  if (options.Has("preferredTrailId") && !options.Get("preferredTrailId").IsNull())
   {
     preferredTrailId = options.Get("preferredTrailId").As<Napi::Number>();
   }

@@ -194,46 +194,84 @@ double tile2lat(int y, int z) {
   return (180 / PI * std::atan(0.5 * (std::exp(n) - std::exp(-n))));
 }
 
-Terrain Elevation::getElevationTile(int x, int y, int z) {
+Terrain Elevation::getElevationTile(int x, int y, int dimension) {
   try {
-    auto zoomFactor = std::pow(2, z);
+    auto latLngPerPoint = 1 / 3600.0;
 
-    auto tmpX = x / zoomFactor - 180.0;
-    auto tmpY = y / zoomFactor - 180.0;
+    auto westEdge = x * (dimension - 1);
+    auto eastEdge = westEdge + (dimension - 1);
+    auto westLng = westEdge * latLngPerPoint - 180;
+    auto eastLng = eastEdge * latLngPerPoint - 180;
 
-    auto lat = std::floor(tmpY);
-    auto lng = std::floor(tmpX);
+    auto southEdge = y * (dimension - 1);
+    auto northEdge = southEdge + (dimension - 1);
+    auto southLat = southEdge * latLngPerPoint - 180;
+    auto northLat = northEdge * latLngPerPoint - 180;
 
-    auto tileX = (tmpX - lng) * zoomFactor;
-    auto tileY = (tmpY - lat) * zoomFactor;
-    auto dimension = 3600 / zoomFactor;
+    auto latMin = std::floor(southLat);
+    auto latMax = std::ceil(northLat);
 
-    LatLng nw(lat, lng);
-
-    auto &file = loadFile(nw);
+    auto lngMin = std::floor(westLng);
+    auto lngMax = std::ceil(eastLng);
 
     std::vector<std::vector<uint16_t>> points;
     std::vector<std::vector<double>> centers;
 
-    int southRow = 3600 - dimension * tileY;
-    int westCol = dimension * tileX;
+    points.resize(dimension);
 
-    int dimensionX = dimension;
-    int dimensionY = dimension;
+    for (auto lat = latMin; lat < latMax; lat++) {
+      for (auto lng = lngMin; lng < lngMax; lng++) {
 
-    points.resize(dimensionY + 1);
+        LatLng nw(lat, lng);
+        auto &file = loadFile(nw);
 
-    for (int j = 0; j < dimensionY + 1; j++) {
-      for (int i = 0; i < dimensionX + 1; i++) {
-        points[j].push_back(
-            swapBytes(file.m_buffer[(southRow - j) * 3601 + westCol + i]));
+        int startX = 0;
+
+        if (lng == lngMin) {
+          startX = westEdge % 3600;
+        }
+
+        int endX = 3600;
+
+        if (lng == lngMax - 1) {
+          endX = eastEdge % 3600;
+          if (endX == 0) {
+            endX = 3600;
+          }
+        }
+
+        int startY = southEdge % 3600;
+        int yy = 0;
+
+        if (lat != latMin) {
+          yy = 3600 - startY;
+          startY = 0;
+        }
+
+        int endY = 3600;
+
+        if (lat == latMax - 1) {
+          endY = northEdge % 3600;
+          if (endY == 0) {
+            endY = 3600;
+          }
+        }
+
+        for (auto j = startY; j <= endY; j++) {
+          for (auto i = startX; i <= endX; i++) {
+            points[yy].push_back(swapBytes(file.m_buffer[(3600 - j) * 3601 + i]));
+          }
+
+          ++yy;
+        }
       }
     }
 
-    centers.resize(points.size() - 1);
+    size_t centersDimension = dimension - 1;
+    centers.resize(centersDimension);
 
-    for (size_t j = 0; j < points.size() - 1; j++) {
-      for (size_t i = 0; i < points[j].size() - 1; i++) {
+    for (size_t j = 0; j < centersDimension; j++) {
+      for (size_t i = 0; i < centersDimension; i++) {
         centers[j].push_back(bilinearInterpolation(
             points[j][i], points[j + 1][i], points[j][i + 1],
             points[j + 1][i + 1], 0.5, 0.5));
