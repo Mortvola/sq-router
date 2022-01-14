@@ -31,6 +31,16 @@ public:
 
   pqxx::result exec(const std::string &sql);
 
+  template <typename... Args>
+  pqxx::result exec (const std::string &sql, Args &&... args)
+  {
+    std::unique_lock<std::mutex> lock(m_dbAccess);
+
+    pqxx::work query(DBConnection::connection ());
+
+    return query.exec_params(sql, args...);
+  }
+
   pqxx::row exec1(const std::string &sql);
 
   template <typename tupleType>
