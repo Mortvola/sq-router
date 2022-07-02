@@ -29,6 +29,8 @@ public:
     bool reverseCosts,
     bool log);
 
+  virtual ~Search() {}
+
   void setOtherSearch(const std::shared_ptr<Search> &otherSearch)
   {
     m_otherSearch = otherSearch;

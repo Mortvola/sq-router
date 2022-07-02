@@ -25,7 +25,7 @@
 #include <future>
 #include <iomanip>
 #include <iostream>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include <list>
 #include <map>
 #include <pqxx/pqxx>
@@ -593,7 +593,7 @@ void PathFinder::updateIntersectionCounts(const Napi::CallbackInfo &info)
 
   postTask(
     env,
-    [this, lat, lng](Napi::Promise::Deferred deferred)
+    [lat, lng](Napi::Promise::Deferred deferred)
     {
       auto dbConnection = std::make_shared<DBConnection>();
 
@@ -1349,12 +1349,12 @@ Napi::Promise::Deferred PathFinder::postTask(
       {
         task(deferred);
       }
-      catch (const pqxx::pqxx_exception &e) {
-        std::cerr << e.base().what() << std::endl;
-        const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error *>(&e.base());
-        if (s) {
-          std::cerr << "Query was: " << s->query() << std::endl;
-        }
+      catch (const pqxx::sql_error &e) {
+        std::cerr << e.what() << std::endl;
+        // const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error *>(&e.base());
+        // if (s) {
+          std::cerr << "Query was: " << e.query() << std::endl;
+        // }
 
         m_callbackFunction.BlockingCall(
           [deferred](Napi::Env env, Napi::Function jsCallback)

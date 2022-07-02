@@ -45,11 +45,11 @@ public:
 
   template <typename tupleType>
   void streamFrom(const std::string &tableName,
-                  const std::vector<std::string> &columns, tupleType &row,
+                  std::initializer_list<std::string_view> &columns, tupleType &row,
                   std::function<void()> callback) {
     pqxx::work query(DBConnection::connection());
 
-    pqxx::stream_from stream{query, tableName, columns};
+    auto stream = pqxx::stream_from::table(query, {tableName}, columns);
 
     while (stream >> row) {
       callback();

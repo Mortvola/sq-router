@@ -32,7 +32,7 @@ public:
 
   ~SearchNode() = default;
 
-  SearchNode(const SearchNode &other) = default;
+  SearchNode(const SearchNode &other) = delete;
   SearchNode(SearchNode &&other) = delete;
   SearchNode &operator=(const SearchNode &other) = delete;
   SearchNode &operator=(SearchNode &&other) = delete;

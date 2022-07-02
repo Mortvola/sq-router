@@ -560,8 +560,8 @@ int SearchController::createNode(int index)
   if (nodeIter == m_searchNodes.end())
   {
     m_searchNodes
-      .emplace(node->getNodeId(), std::make_shared<SearchNode>(*this, node))
-      .first->second;
+      .emplace(node->getNodeId(), std::make_shared<SearchNode>(*this, node));
+      // .first->second;
   }
 
   return node->getNodeId();

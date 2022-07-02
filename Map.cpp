@@ -10,7 +10,7 @@
 #include "Elevation.h"
 #include "./Database/DBConnection.h"
 #include "Cost.h"
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include <iostream>
 
 
@@ -102,10 +102,10 @@ TrailInfo getTrailFromPoint(const Point &point)
 
 		return ti;
 	}
-	catch (const pqxx::pqxx_exception &e)
+	catch (const pqxx::data_exception &e)
 	{
-		std::cerr << e.base().what() << std::endl;
-		const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error*>(&e.base());
+		std::cerr << e.what() << std::endl;
+		const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error*>(&e);
 		if (s)
 		{
 			std::cerr << "Query was: " << s->query() << std::endl;
@@ -171,10 +171,10 @@ TrailInfo getLineFromPoint(const Point &point)
 
 		return ti;
 	}
-	catch (const pqxx::pqxx_exception &e)
+	catch (const pqxx::data_exception &e)
 	{
-		std::cerr << e.base().what() << std::endl;
-		const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error*>(&e.base());
+		std::cerr << e.what() << std::endl;
+		const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error*>(&e);
 		if (s)
 		{
 			std::cerr << "Query was: " << s->query() << std::endl;
@@ -314,10 +314,10 @@ void updateRouteElevations()
 
     std::cerr << "Completed updating route elevations" << std::endl;
 	}
-	catch (const pqxx::pqxx_exception &e)
+	catch (const pqxx::data_exception &e)
 	{
-		std::cerr << e.base().what() << std::endl;
-		const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error*>(&e.base());
+		std::cerr << e.what() << std::endl;
+		const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error*>(&e);
 		if (s)
 		{
 			std::cerr << "Query was: " << s->query() << std::endl;
@@ -421,10 +421,10 @@ void updateNavEdgeCosts(const std::vector<std::vector<int>> &areas)
 
     std::cerr << "Completed updating edge costs" << std::endl;
 	}
-	catch (const pqxx::pqxx_exception &e)
+	catch (const pqxx::data_exception &e)
 	{
-		std::cerr << e.base().what() << std::endl;
-		const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error*>(&e.base());
+		std::cerr << e.what() << std::endl;
+		const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error*>(&e);
 		if (s)
 		{
 			std::cerr << "Query was: " << s->query() << std::endl;

@@ -39,7 +39,7 @@ public:
 
 private:
 
-  SearchController &m_controller;
+  // SearchController &m_controller;
 
   std::mutex m_entriesMutex;
   std::vector<SearchLogEntry> m_entries;

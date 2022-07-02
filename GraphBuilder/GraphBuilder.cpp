@@ -6,7 +6,7 @@
  */
 #include "GraphBuilder.h"
 #include <iostream>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include "configuration.h"
 #include "./Database/DBConnection.h"
 #include "Cost.h"
@@ -799,7 +799,7 @@ bool GraphBuilder::updateIntersections (
   int routesProcessed {0};
 
 	// Iterate through the list of intersections
-  size_t completed = 0;
+  pqxx::result::size_type completed = 0;
 	for (const auto &intersection: intersections)
 	{
     auto lineId = intersection["line_id"].as<int64_t>();

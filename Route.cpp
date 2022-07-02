@@ -11,7 +11,7 @@
 #include "Elevation.h"
 #include "Map.h"
 #include <iostream>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include <pqxx/pqxx>
 #include <string>
 #include <tuple>

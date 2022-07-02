@@ -69,10 +69,10 @@ void updateNavNodeElevations()
 
 		transaction.commit ();
 	}
-	catch (const pqxx::pqxx_exception &e)
+	catch (const pqxx::data_exception &e)
 	{
-		std::cerr << e.base().what() << std::endl;
-		const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error*>(&e.base());
+		std::cerr << e.what() << std::endl;
+		const pqxx::sql_error *s = dynamic_cast<const pqxx::sql_error*>(&e);
 		if (s)
 		{
 			std::cerr << "Query was: " << s->query() << std::endl;

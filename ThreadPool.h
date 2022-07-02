@@ -41,7 +41,7 @@ std::future<T> ThreadPool::postTask(
 
   std::unique_lock<std::mutex> lock(m_queueMutex);
   m_queue.push_back(
-    [this, promise, task]()
+    [promise, task]()
     {
       try
       {

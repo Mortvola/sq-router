@@ -15,7 +15,7 @@ public:
 
 	SplitEdge (const SplitEdge &other) = delete;
 	SplitEdge (SplitEdge &&other) = delete;
-	SplitEdge &operator= (const SplitEdge &other) = default;
+	SplitEdge &operator= (const SplitEdge &other) = delete;
 	SplitEdge &operator= (SplitEdge &&other) = delete;
 
   int m_lineId {-1};

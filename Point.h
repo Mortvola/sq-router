@@ -9,7 +9,7 @@
 
 #include <ostream>
 #include <iomanip>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include "LatLng.h"
 
 class Point : public LatLng

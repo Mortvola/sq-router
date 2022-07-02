@@ -3,8 +3,6 @@
 #include "SearchController.h"
 
 SearchLog::SearchLog(SearchController &controller)
-:
-  m_controller(controller)
 {
 }
 

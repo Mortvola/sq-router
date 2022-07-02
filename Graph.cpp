@@ -10,7 +10,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <optional>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 
 constexpr int Graph::NodeIdNone;
 

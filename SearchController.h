@@ -86,7 +86,7 @@ private:
   std::map<int, std::shared_ptr<SearchNode>> m_searchNodes;
 
   std::vector<std::shared_ptr<SplitEdge>> m_splits;
-  int m_splitEdgeSeq{-512};
+  // int m_splitEdgeSeq{-512};
   int m_insertedNodeSeq{-2};
 
   std::vector<std::shared_ptr<Node>> m_nodes;

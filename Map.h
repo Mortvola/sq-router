@@ -8,7 +8,7 @@
 #pragma once
 
 #include "Point.h"
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include "TrailInfo.h"
 
 TrailInfo getTrailFromPoint(const Point &point);

@@ -1,6 +1,6 @@
 #pragma once
 #include <napi.h>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 
 extern const std::string StatusRoutesUpdating;
 extern const std::string StatusUpdatingRoutes;
