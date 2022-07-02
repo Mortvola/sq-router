@@ -61,7 +61,12 @@
       'NODE_API_SWALLOW_UNTHROWABLE_EXCEPTIONS'
     ],
     'conditions': [
-      ['OS != "linux"', {
+      ['OS == "linux"', {
+        'include_dirs': [
+          "/usr/include/jsoncpp",
+        ],
+      },
+      {
         "xcode_settings": {
           'CLANG_CXX_LANGUAGE_STANDARD': 'c++17',
           'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
